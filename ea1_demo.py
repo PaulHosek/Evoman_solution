@@ -19,7 +19,7 @@ if not os.path.exists(experiment_name):
 
 # DEFINE VARIABLES
 # environment variables
-enemies = [1, 4] #list of player enemies - any from 1..8
+enemies = [1, 4, 8] #list of player enemies - any from 1..8
 n_runs = 3 #should be 10
 gen_size = 4 #should be 100
 pop_size = 10
@@ -97,10 +97,8 @@ def write_best(individuals, file, enemy):
         for weight in individual:
             f.write(str(weight) + "\n")
 
-def init_deap(env):
+def init_deap():
     global toolbox, log
-    # number of weights for multilayer network with n_hidden_neurons
-    n_weights = (env.get_num_sensors()+1)*n_hidden_neurons + (n_hidden_neurons+1)*5
 
     # deap - creating types: Fitness, Individual and Population
     # Fitness - tuple, we give one for single objective, 1.0 for maximizing
@@ -112,8 +110,6 @@ def init_deap(env):
     toolbox = base.Toolbox()
     # population drawn from uniform distribution
     toolbox.register("indices", np.random.uniform, -1, 1)
-    toolbox.register("individual", tools.initRepeat, creator.Individual, toolbox.indices, n=n_weights)
-    toolbox.register("population", tools.initRepeat, list, toolbox.individual, n=pop_size)
 
     # Register functions
     toolbox.register("evaluate", cust_evaluate)
@@ -136,15 +132,19 @@ def plot_exp_stats(enemy, statistics):
     plt.plot(x, means[0], color="red", label="Mean Fitness")
     plt.plot(x, means[1], color="blue", label="Maximum Fitness")
     plt.legend(loc="lower right")
-    plt.show()
     plt.savefig(experiment_name + '/plots/enemy' + str(enemy) + '.png')
+    plt.show()
 
 def main():
+    init_deap()
     # For each of the n enemies we want to run the experiment for:
     for enemy in enemies:
         # Get enviroment for player and prepare DEAP
         env = get_env([enemy])
-        init_deap(env)
+        # number of weights for multilayer network with n_hidden_neurons
+        n_weights = (env.get_num_sensors() + 1) * n_hidden_neurons + (n_hidden_neurons + 1) * 5
+        toolbox.register("individual", tools.initRepeat, creator.Individual, toolbox.indices, n=n_weights)
+        toolbox.register("population", tools.initRepeat, list, toolbox.individual, n=pop_size)
 
         best_individuals = []
         statistics = []

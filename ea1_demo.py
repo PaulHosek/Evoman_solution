@@ -2,7 +2,7 @@
 import sys, os
 import numpy as np
 import json
-import pandas as pd
+import time
 import matplotlib.pyplot as plt
 
 sys.path.insert(0, 'evoman')
@@ -20,9 +20,9 @@ if not os.path.exists(experiment_name):
 # DEFINE VARIABLES
 # environment variables
 enemies = [1, 4, 8] #list of player enemies - any from 1..8
-n_runs = 3 #should be 10
-gen_size = 4 #should be 100
-pop_size = 10
+n_runs = 1 #should be 10
+gen_size = 30 #should be 100
+pop_size = 100
 n_hidden_neurons = 10
 max_budget = 500 #default is 3000
 difficulty_level = 2 #default is 1
@@ -151,6 +151,7 @@ def main():
 
         # We run the experiment a few times - n_runs
         for run in range(1,n_runs+1):
+            start_time = time.time()
             gen_stat = []
 
             # ---------------Initialize population ---------------
@@ -179,6 +180,7 @@ def main():
             print("-- End of (successful) evolution --")
             statistics.append(gen_stat)
             best_individuals.append(best[0])
+            print("---- %s seconds elapsed ----" % (time.time() - start_time))
 
         # Write best individuals fitness values for enemy and experiment
         write_best(best_individuals, experiment_name + "/best_results/Best_individuals_" + experiment_name, enemy)

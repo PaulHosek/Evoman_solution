@@ -5,10 +5,14 @@ import json
 import time
 import matplotlib.pyplot as plt
 
+
+
 sys.path.insert(0, 'evoman')
 from evoman.environment import Environment
 from demo_controller import player_controller
 from deap import tools, creator, base, algorithms
+os.environ["SDL_VIDEODRIVER"] = "dummy"
+
 
 # create experiment folder if needed
 experiment_name = 'EA1'

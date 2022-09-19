@@ -1,11 +1,12 @@
 # imports framework
+import itertools
 import sys, os
 import numpy as np
 import json
 import time
 import matplotlib.pyplot as plt
-
-
+from dask import bag as db
+from multiprocessing import Pool
 
 sys.path.insert(0, 'evoman')
 from evoman.environment import Environment
@@ -25,7 +26,7 @@ if not os.path.exists(experiment_name):
 # environment variables
 enemies = [1, 4, 8] #list of player enemies - any from 1..8
 n_runs = 1 #should be 10
-gen_size = 30 #should be 100
+gen_size = 2 #should be 100
 pop_size = 100
 n_hidden_neurons = 10
 max_budget = 500 #default is 3000
@@ -69,6 +70,43 @@ def evaluate_pop(env, pop):
     fitnesses = toolbox.map(toolbox.evaluate, envs, individuals)
     for indiv, fitness in zip(pop, fitnesses):
         indiv.fitness.values = fitness
+
+# Dask bag
+# def evaluate_pop(env, pop):
+#     # pop_size Individual objects with weights
+#     selected_indiv = [indiv for indiv in pop if not indiv.fitness.valid]
+#     individuals = db.from_sequence(selected_indiv)
+#     # pop_size Environment objects
+#     envs = db.from_sequence([env for i in range(len(selected_indiv))])
+#
+#     print("---- Will evaluate %i individuals" % len(selected_indiv))
+#     # fitnesses =
+#     fitnesses = db.map(toolbox.evaluate, envs, individuals)
+#
+#     for indiv, fitness in zip(pop, fitnesses):
+#         indiv.fitness.values = fitness
+#
+
+
+# Determine individuals that need to be evaluated
+# Multiprocessing Pool
+# def evaluate_pop(env, pop):
+#     # pop_size Individual objects with weights
+#     individuals = [indiv for indiv in pop if not indiv.fitness.valid]
+#     # pop_size Environment objects
+#     envs = [env for i in range(len(individuals))]
+#     with Pool() as pool:
+#         fitnesses = pool.map(toolbox.evaluate, itertools.izip(envs, itertools.repeat(individuals)))
+#     print("---- Will evaluate %i individuals" % len(individuals))
+#     # fitnesses = toolbox.map(toolbox.evaluate, envs, individuals)
+#
+#     for indiv, fitness in zip(pop, fitnesses):
+#         indiv.fitness.values = fitness
+
+
+
+
+
 
 # get statistics about game
 def get_stats(pop):
@@ -176,10 +214,10 @@ def main():
 
                 # ---------------Create the next generation by crossover and mutation --------------- #
                 if generation < gen_size:  # not necessary for the last generation
-                    pop = toolbox.select(pop,len(pop))
-                    offs = algorithms.varAnd(pop,toolbox,mate,mutation)
+                    # pop = toolbox.select(pop,len(pop)) # select only needed if select subset
+                    pop = algorithms.varAnd(pop,toolbox,mate,mutation)
                     # The population is entirely replaced by the offspring
-                    pop = offs
+                    # pop = offs
 
             print("-- End of (successful) evolution --")
             statistics.append(gen_stat)

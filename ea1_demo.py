@@ -214,10 +214,9 @@ def main():
 
                 # ---------------Create the next generation by crossover and mutation --------------- #
                 if generation < gen_size:  # not necessary for the last generation
-                    # pop = toolbox.select(pop,len(pop)) # select only needed if select subset
-                    pop = algorithms.varAnd(pop,toolbox,mate,mutation)
-                    # The population is entirely replaced by the offspring
-                    # pop = offs
+                    pop = toolbox.select(pop,len(pop)) # select only needed if select subset
+                    offs = algorithms.varAnd(pop,toolbox,mate,mutation)
+                    pop = offs
 
             print("-- End of (successful) evolution --")
             statistics.append(gen_stat)

@@ -5,9 +5,10 @@ import numpy as np
 import json
 import time
 import matplotlib.pyplot as plt
+
 import numba
 from typing import List
-import time
+
 
 sys.path.insert(0, 'evoman')
 from evoman.environment import Environment
@@ -243,10 +244,7 @@ def main():
                 if generation < gen_size:  # not necessary for the last generation
                     # copy and select individuals to generate offspring
                     offs = map(toolbox.clone, toolbox.select(pop,len(pop))) # select only needed if select subset
-                    start = time.time()
                     offs = algorithms.varAnd(pop,toolbox,mate,mutation)
-                    end = time.time()
-                    print(end-start)
                     pop = offs
 
             print("-- End of (successful) evolution --")

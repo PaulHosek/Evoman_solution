@@ -5,6 +5,9 @@ import numpy as np
 import json
 import time
 import matplotlib.pyplot as plt
+import numba
+from typing import List
+import time
 
 sys.path.insert(0, 'evoman')
 from evoman.environment import Environment
@@ -37,6 +40,8 @@ mate = 1
 mutation = 0.2
 toolbox, log = None, None
 eta = 2
+
+ind_type = List[float]
 # returns environment for specific enemies
 def get_env(enemies):
     # initializes environments for each game/enemy type with ai player using random controller, playing against static enemy
@@ -57,6 +62,11 @@ def simulation(env,x):
 def cust_evaluate(env,x):
     sim = simulation(env,x)
     return (sim,)
+
+# @nb.vectorize
+# def cust_evaluate_v2(env, x):
+#     fitness, _, _, _ = env.play(pcont=x)
+#     return fitness
 
 # Determine individuals that need to be evaluated
 def evaluate_pop(env, pop):
@@ -121,8 +131,10 @@ def write_best(individuals, file, enemy):
 #     #     j += 2
 # "Rather than selecting offspring values uniformly from a range around each parent values,
 # they are selected from a distribution which is more likely to create small changes,
-# and the distribution is controlled by the distance between the parents."
-def sbx(p1, p2, eta=eta):
+# and the distribution is controlled by the distance between the parents."@
+@numba.jit(nopython=True, nogil=True, parallel=True)
+def sbx(p1: List[float], p2: List[float],
+        eta: float=eta) -> (List[float], List[float]):
     """
     Simulated Binary Crossover for 2 individuals
 
@@ -138,6 +150,7 @@ def sbx(p1, p2, eta=eta):
         return 1.0 / (2.0 * (1.0 - u)) ** (1.0 / (eta + 1.0))
 
     for idx, (p1_val, p2_val) in enumerate(zip(p1, p2)):
+            #beta = children spread relative to parent poitns
             beta = gen_beta(eta)
             p2[idx] = 0.5 * ((1.0 - beta) * p1_val + (1.0 + beta) * p2_val)
             p1[idx] = 0.5 * ((1.0 + beta) * p1_val + (1.0 - beta) * p2_val)
@@ -230,7 +243,10 @@ def main():
                 if generation < gen_size:  # not necessary for the last generation
                     # copy and select individuals to generate offspring
                     offs = map(toolbox.clone, toolbox.select(pop,len(pop))) # select only needed if select subset
+                    start = time.time()
                     offs = algorithms.varAnd(pop,toolbox,mate,mutation)
+                    end = time.time()
+                    print(end-start)
                     pop = offs
 
             print("-- End of (successful) evolution --")

@@ -31,7 +31,7 @@ if not os.path.exists(experiment_name):
 # DEFINE VARIABLES
 # environment variables
 enemies = [1] #list of player enemies - any from 1..8
-n_runs = 5 #should be 10
+n_runs = 10 #should be 10
 gen_size = 30 #should be 100
 pop_size = 100
 n_hidden_neurons = 10
@@ -42,7 +42,7 @@ players_life = 100
 deap_algorithms = ['eaSimple', 'eaMuPlusLambda']
 
 # deap variables
-mate = 1
+mating_prob = 1
 crossover_rate = 0.8
 mutation = 0.2
 toolbox, log = None, None
@@ -155,7 +155,8 @@ def create_next_generation(env, pop, alg="eaSimple"):
         # Select the next generation individuals
         offspring = toolbox.select(pop, len(pop))
         # Vary the pool of individuals
-        offspring = algorithms.varAnd(offspring, toolbox, mate, mutation)
+        algorithms.eaSimple()
+        offspring = algorithms.varAnd(offspring, toolbox, mating_prob, mutation)
         # Evaluate the individuals with an invalid fitness
         offspring = evaluate_pop(env, offspring)
         # Replace the current population by the offspring

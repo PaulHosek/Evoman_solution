@@ -39,7 +39,8 @@ max_budget = 500 #default is 3000
 difficulty_level = 2 #default is 1
 enemymode = "static" #default is ai
 players_life = 100
-deap_algorithms = ['eaSimple', 'eaMuPlusLambda']
+#deap_algorithms = ['eaMuPlusLambda', 'eaMuCommaLambda', 'eaSimple']
+deap_algorithms = ['eaMuCommaLambda']
 
 # deap variables
 mating_prob = 1
@@ -168,6 +169,13 @@ def create_next_generation(env, pop, alg="eaSimple"):
          offspring = evaluate_pop(env, offspring)
          # Select the next generation population
          pop[:] = toolbox.select(pop + offspring, pop_size)
+    elif alg == 'eaMuCommaLambda':
+         # Vary the population
+         offspring = algorithms.varOr(pop, toolbox, pop_size, crossover_rate, mutation)
+         # Evaluate the individuals with an invalid fitness
+         offspring = evaluate_pop(env, offspring)
+         # Select the next generation population
+         pop[:] = toolbox.select(offspring, pop_size)
 
     # get best results
     best = tools.HallOfFame(1, similar=np.array_equal)

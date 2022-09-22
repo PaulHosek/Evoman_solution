@@ -136,10 +136,13 @@ def init_deap():
     log.header = ['enemy','run','generation','population size','fitness mean','fitness max']
 
 def plot_exp_stats(enemy, statistics, alg):
+    # TO-DO:
+    # Save statistics before plotting in file so we can play more with the experiments data
     x = range(1, gen_size + 1)
-    means = np.transpose(np.mean(statistics, axis=0))
+    means = np.transpose(np.mean(statistics, axis=0)) #this migjt be automatically done with seaborn
     # stds = np.transpose(np.std(statistics, axis=0))
 
+    plt.figure(figsize=(10, 8))
     plt.title("%s Enemy %i - Average and Maximum Fitness of each Generation" % (alg, enemy))
     plt.xlabel("Generation")
     plt.ylabel("Fitness")
@@ -147,8 +150,10 @@ def plot_exp_stats(enemy, statistics, alg):
     plt.plot(x, means[1], color="blue", label="Maximum Fitness")
     plt.legend(loc="lower right")
     plt.savefig(experiment_name + '/plots/' + alg + '_enemy' + str(enemy) + '.png')
+    plt.ylim(0, 100)
     plt.show()
 
+# TO-DO: simplify this and call the existing DEAP functions
 def create_next_generation(env, pop, alg="eaSimple"):
     global pop_size
     #mu and lambda are pop_size

@@ -42,9 +42,9 @@ if not os.path.exists(experiment_name):
 # CXPB = 0.8
 # MUTPB = 0.2
 NRUN = 2 #should be 10
-NGEN = 30 #should be 100?
-MU = 10
-LAMBDA = 10
+NGEN = 40 #should be 100?
+MU = 50
+LAMBDA = 50
 CXPB = 0.8
 MUTPB = 0.2
 
@@ -106,7 +106,35 @@ def plot_exp_stats(enemy, statistics, alg):
     # TO-DO:
     # Save statistics before plotting in file so we can play more with the experiments data
     df_stat = pd.concat(statistics)
-    print(df_stat.mean())
+
+    # Avg and std of means
+    avg_mean = df_stat.groupby(['gen'])['mean'].mean().to_numpy()
+    std_mean = df_stat.groupby(['gen'])['mean'].std().to_numpy()
+    avg_mean_plus_std = [a + b for a, b in zip(avg_mean, std_mean)]
+    avg_mean_minus_std = [a - b for a, b in zip(avg_mean, std_mean)]
+
+    # Avg and std of maxes
+    avg_max = df_stat.groupby(['gen'])['max'].mean().to_numpy()
+    std_max = df_stat.groupby(['gen'])['max'].std().to_numpy()
+    avg_max_plus_std = [a + b for a, b in zip(avg_max, std_max)]
+    avg_max_minus_std = [a - b for a, b in zip(avg_max, std_max)]
+
+    gen = range(0, NGEN + 1)
+    print(gen)
+
+    # Generate line plot
+    fig, ax = plt.subplots()
+    ax.plot(gen, avg_mean, '-', label='average mean')
+    ax.fill_between(gen, avg_mean_minus_std, avg_mean_plus_std, alpha=0.2)
+    ax.plot(gen, avg_max, '-', label='average max')
+    ax.fill_between(gen, avg_max_minus_std, avg_max_plus_std, alpha=0.2)
+    ax.legend(loc='lower right', prop={'size': 15})
+    ax.set_xlabel('Generations')
+    ax.set_ylabel('Fitness')
+    ax.grid()
+    plt.show()
+    
+    # print(df_stat.mean())
     exit('Need to play with dataframes for plotting')
 
     x = range(1, NGEN + 1)
@@ -150,8 +178,8 @@ toolbox.register("select", tools.selTournament,tournsize=2)
 
 # Register statistics functions
 stats = tools.Statistics(lambda ind: ind.fitness.values)
-stats.register("avg", np.mean, axis=0)
-stats.register("max", np.max, axis=0)
+stats.register("mean", np.mean)
+stats.register("max", np.max)
 
 # ---------------------------------- Main ------------------------------------ #
 

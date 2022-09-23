@@ -35,16 +35,10 @@ if not os.path.exists(experiment_name):
     os.makedirs(experiment_name + '/plots')
 
 # DEFINE VARIABLES
-# NRUN = 10 #should be 10
-# NGEN = 30 #should be 100?
-# MU = 100
-# LAMBDA = 100
-# CXPB = 0.8
-# MUTPB = 0.2
 NRUN = 2 #should be 10
-NGEN = 40 #should be 100?
-MU = 50
-LAMBDA = 50
+NGEN = 20 #should be 100?
+MU = 40
+LAMBDA = 40
 CXPB = 0.8
 MUTPB = 0.2
 
@@ -123,34 +117,21 @@ def plot_exp_stats(enemy, statistics, alg):
     print(gen)
 
     # Generate line plot
+    # NOTE - Generate plots WITHOUT title since we will add a title in the report 
     fig, ax = plt.subplots()
+    # ax.set_title(f"{alg} Enemy {enemy} - Mean and Maximum Fitness vs Generation")
+    ax.set_xlabel('Generation')
+    ax.set_ylabel('Fitness')
     ax.plot(gen, avg_mean, '-', label='average mean')
     ax.fill_between(gen, avg_mean_minus_std, avg_mean_plus_std, alpha=0.2)
     ax.plot(gen, avg_max, '-', label='average max')
     ax.fill_between(gen, avg_max_minus_std, avg_max_plus_std, alpha=0.2)
     ax.legend(loc='lower right', prop={'size': 15})
-    ax.set_xlabel('Generations')
-    ax.set_ylabel('Fitness')
+    ax.set_ylim(0, 100)
     ax.grid()
-    plt.show()
-    
-    # print(df_stat.mean())
-    exit('Need to play with dataframes for plotting')
-
-    x = range(1, NGEN + 1)
-    means = np.transpose(np.mean(statistics, axis=0)) #this migjt be automatically done with seaborn
-    # stds = np.transpose(np.std(statistics, axis=0))
-
-    plt.figure(figsize=(10, 8))
-    plt.title("%s Enemy %i - Average and Maximum Fitness of each Generation" % (alg, enemy))
-    plt.xlabel("Generation")
-    plt.ylabel("Fitness")
-    plt.plot(x, means[0], color="red", label="Mean Fitness")
-    plt.plot(x, means[1], color="blue", label="Maximum Fitness")
-    plt.legend(loc="lower right")
-    plt.savefig(experiment_name + '/plots/' + alg + '_enemy' + str(enemy) + '.png')
-    plt.ylim(0, 100)
-    plt.show()
+    fig.savefig(f"{experiment_name}/plots/{alg}_enemy{enemy}.pdf")
+    plt.close()
+    # plt.show()
 
 # ----------------------------- Initialise DEAP ------------------------------ #
 
@@ -228,6 +209,7 @@ def main():
         #write_stats_in_file(log,"log_stats_" + experiment_name + alg + ".txt")
 
 if __name__ == "__main__":
+    # Use multiprocessing map implementation for parallelization
     pool = mp.Pool(processes=mp.cpu_count())
     toolbox.register('map', pool.map)
 

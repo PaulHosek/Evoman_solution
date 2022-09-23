@@ -35,10 +35,16 @@ if not os.path.exists(experiment_name):
     os.makedirs(experiment_name + '/plots')
 
 # DEFINE VARIABLES
-NRUN = 10 #should be 10
+# NRUN = 10 #should be 10
+# NGEN = 30 #should be 100?
+# MU = 100
+# LAMBDA = 100
+# CXPB = 0.8
+# MUTPB = 0.2
+NRUN = 2 #should be 10
 NGEN = 30 #should be 100?
-MU = 100
-LAMBDA = 100
+MU = 10
+LAMBDA = 10
 CXPB = 0.8
 MUTPB = 0.2
 
@@ -131,11 +137,21 @@ toolbox = base.Toolbox()
 # population drawn from uniform distribution
 toolbox.register("indices", np.random.uniform, -1, 1)
 
-# Register functions
+# number of weights for multilayer network with n_hidden_neurons
+n_weights = (env.get_num_sensors() + 1) * n_hidden_neurons + (n_hidden_neurons + 1) * 5
+toolbox.register("individual", tools.initRepeat, creator.Individual, toolbox.indices, n=n_weights)
+toolbox.register("population", tools.initRepeat, list, toolbox.individual, n=MU)
+
+# Register EA functions
 toolbox.register("evaluate", cust_evaluate)
 toolbox.register("mate", tools.cxTwoPoint) # crossover operator
 toolbox.register("mutate", tools.mutShuffleIndexes, indpb=0.5)
 toolbox.register("select", tools.selTournament,tournsize=2)
+
+# Register statistics functions
+stats = tools.Statistics(lambda ind: ind.fitness.values)
+stats.register("avg", np.mean, axis=0)
+stats.register("max", np.max, axis=0)
 
 # ---------------------------------- Main ------------------------------------ #
 
@@ -147,11 +163,7 @@ def main():
         print("Algorithm: %s" % alg)
         # For each of the n enemies we want to run the experiment for:
         for enemy in enemies:
-            # number of weights for multilayer network with n_hidden_neurons
-            n_weights = (env.get_num_sensors() + 1) * n_hidden_neurons + (n_hidden_neurons + 1) * 5
-            toolbox.register("individual", tools.initRepeat, creator.Individual, toolbox.indices, n=n_weights)
-            toolbox.register("population", tools.initRepeat, list, toolbox.individual, n=MU)
-
+            
             best_individuals = []
             statistics = []
 
@@ -161,9 +173,6 @@ def main():
                 #pop = np.random.uniform(low=-1, high=1, size=(n_population, n_weights))
                 pop = toolbox.population(n=MU)
                 hof = tools.ParetoFront(eq_)
-                stats = tools.Statistics(lambda ind: ind.fitness.values)
-                stats.register("avg", np.mean, axis=0)
-                stats.register("max", np.max, axis=0)
 
                 print("Start of evolution player %i run %i" % (enemy, run))
                 if alg == 'eaMuPlusLambda':

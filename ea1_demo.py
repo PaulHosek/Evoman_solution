@@ -45,7 +45,6 @@ MUTPB = 0.2
 enemies = [1] #list of player enemies - any from 1-8
 n_hidden_neurons = 10
 max_budget = 500 #default is 3000
-difficulty_level = 2 #default is 1
 enemymode = "static" #default is ai
 players_life = 100
 
@@ -57,7 +56,6 @@ env = Environment(experiment_name=experiment_name,
                   enemies=enemies,
                   player_controller=player_controller(n_hidden_neurons),
                   enemymode="static",
-                  level=difficulty_level,
                   speed="fastest",
                   timeexpire=max_budget)
 

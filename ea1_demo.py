@@ -262,9 +262,9 @@ def main():
                 statistics.append(pd.DataFrame(logbook))
 
             # Write best individuals fitness values for enemy and experiment
-            write_best(best_individuals, experiment_name + "/best_results/Best_individuals_" + experiment_name + alg, enemy)
             exp_name = '_'.join([selection, mutation, crossover, str(MU), str(LAMBDA), str(NGEN), str(CXPB), str(MUTPB)])
             plot_exp_stats(enemy, statistics, alg, exp_name)
+            write_best(best_individuals, experiment_name + "/best_results/Best_individuals_" + experiment_name + alg, enemy)
             eval_best(best_individuals, experiment_name + "/best_results/best_individuals/", alg, enemy)
 
         # Write statistics for experiment

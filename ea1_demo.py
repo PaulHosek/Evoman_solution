@@ -31,14 +31,16 @@ experiment_name = 'ea_exp'
 if not os.path.exists(experiment_name):
     os.makedirs(experiment_name)
     os.makedirs(experiment_name + '/best_results')
+    os.makedirs(experiment_name + '/best_results' + '/best_weights')
+    os.makedirs(experiment_name + '/best_results' + '/best_individuals')
     os.makedirs(experiment_name + '/plotted_results')
     os.makedirs(experiment_name + '/plots')
 
 # DEFINE VARIABLES
-NRUN = 2 #should be 10
-NGEN = 20 #should be 100?
-MU = 40
-LAMBDA = 40
+NRUN = 3 #should be 10
+NGEN = 5 #should be 100?
+MU = 10
+LAMBDA = 10
 CXPB = 0.8
 MUTPB = 0.2
 
@@ -73,6 +75,12 @@ def cust_evaluate(x):
     fitness = simulation(env,x)
     return (fitness,)
 
+# Evaluate the individual gain
+def eval_ind_gain(x):
+    fitness, player_energy, enemy_energy, game_time = env.play(pcont=x)
+    return player_energy - enemy_energy
+
+
 # Determine individuals that need to be evaluated
 def evaluate_pop(pop):
     # Evaluate the individuals with an invalid fitness
@@ -92,9 +100,37 @@ def write_stats_in_file(stats, file):
 def write_best(individuals, file, enemy):
     for count, individual in enumerate(individuals):
         tmp = count + 1
-        f = open(file + "_e" + str(enemy) + "_i" + str(tmp) + ".txt", "w+")
-        for weight in individual:
-            f.write(str(weight) + "\n")
+        with open(file + "_e" + str(enemy) + "_run" + str(tmp) + ".txt", "w+") as f:
+            for weight in individual:
+                f.write(str(weight) + "\n")
+
+# Test the best individual per run and save resulting statistics 
+def eval_best(individuals, folder, alg, enemy):
+    print("-- Evaluating Best Individuals --")
+    # Iterate over the best individuals from each run
+    results = []
+    for ind in individuals:
+        # Test each individual 5 times
+        results.append([eval_ind_gain(ind) for _ in range(5)])
+
+    # Calculate the mean over the 5 runs
+    results = np.squeeze(np.array(results))
+    mean_results = np.mean(results, axis=1)
+
+    # Save the results to a text file for future plots
+    np.savetxt(f"{folder}alg-{alg}_enemy-{enemy}.txt", mean_results)
+
+    # Plot and save the box plot
+    # NOTE - This plot will not be used directly in the report as it needs to
+    # be grouped with the other box plots
+    fig, ax = plt.subplots()
+    ax.set_title(f"alg-{alg}_enemy-{enemy}")
+    ax.set_ylabel('Individual Gain')
+    ax.boxplot(mean_results, patch_artist=True, labels=[f"{alg}"])
+    ax.yaxis.grid()
+    fig.savefig(f"{folder}alg-{alg}_enemy-{enemy}.pdf")
+    plt.close()
+
 
 def plot_exp_stats(enemy, statistics, alg):
     # TO-DO:
@@ -200,10 +236,10 @@ def main():
                 best_individuals.append(hof[0])
                 statistics.append(pd.DataFrame(logbook))
 
-            print(statistics)
             # Write best individuals fitness values for enemy and experiment
-            write_best(best_individuals, experiment_name + "/best_results/Best_individuals_" + experiment_name + alg, enemy)
+            write_best(best_individuals, experiment_name + "/best_results/best_weights/Best_individuals_" + experiment_name + alg, enemy)
             plot_exp_stats(enemy, statistics, alg)
+            eval_best(best_individuals, experiment_name + "/best_results/best_individuals/", alg, enemy)
 
         # Write statistics for experiment
         #write_stats_in_file(log,"log_stats_" + experiment_name + alg + ".txt")

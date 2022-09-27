@@ -5,9 +5,13 @@ import json
 
 import numpy as np
 import pandas as pd
+import matplotlib
+matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 import multiprocessing as mp
 from deap import tools, creator, base, algorithms
+from os import environ
+
 
 if os.environ.get('EVOMAN_FAST'):
     print("\nUsing evoman_fast!!! ...vrooom\n")
@@ -22,9 +26,9 @@ from demo_controller import player_controller
 # ---------------------------------- Setup ----------------------------------- #
 
 # Prevent graphics and audio rendering to speed up simulations
-os.environ["SDL_VIDEODRIVER"] = "dummy"
-os.environ["SDL_AUDIODRIVER"] = "dummy"
-os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide"
+environ["SDL_VIDEODRIVER"] = "dummy"
+environ["SDL_AUDIODRIVER"] = "dummy"
+environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide"
 
 # Create experiment folder if needed
 experiment_name = 'ea_exp'
@@ -37,19 +41,23 @@ if not os.path.exists(experiment_name):
     os.makedirs(experiment_name + '/plots')
 
 # DEFINE VARIABLES
-NRUN = 3 #should be 10
-NGEN = 5 #should be 100?
-MU = 10
-LAMBDA = 10
-CXPB = 0.8
-MUTPB = 0.2
+NRUN = 10 #should be 10
 
 enemies = [1] #list of player enemies - any from 1-8
 n_hidden_neurons = 10
 max_budget = 500 #default is 3000
-difficulty_level = 2 #default is 1
 enemymode = "static" #default is ai
 players_life = 100
+
+# Read environment variables
+selection = environ.get("sel", 'selTournament')
+mutation = environ.get("mut", 'mutShuffleIndexes')
+crossover = environ.get("cx", 'cxTwoPoint')
+MU = int(environ.get("mu", 100))
+LAMBDA = int(environ.get("lambda", 100))
+NGEN = int(environ.get("ngen", 30))
+CXPB = round(float(environ.get("cxpb", 0.8)),2)
+MUTPB = round(1-CXPB, 2)
 
 #deap_algorithms = ['eaMuPlusLambda', 'eaMuCommaLambda', 'eaSimple']
 deap_algorithms = ['eaMuPlusLambda']
@@ -59,7 +67,6 @@ env = Environment(experiment_name=experiment_name,
                   enemies=enemies,
                   player_controller=player_controller(n_hidden_neurons),
                   enemymode="static",
-                  level=difficulty_level,
                   speed="fastest",
                   timeexpire=max_budget)
 
@@ -132,7 +139,7 @@ def eval_best(individuals, folder, alg, enemy):
     plt.close()
 
 
-def plot_exp_stats(enemy, statistics, alg):
+def plot_exp_stats(enemy, statistics, alg, exp_name):
     # TO-DO:
     # Save statistics before plotting in file so we can play more with the experiments data
     df_stat = pd.concat(statistics)
@@ -150,12 +157,11 @@ def plot_exp_stats(enemy, statistics, alg):
     avg_max_minus_std = [a - b for a, b in zip(avg_max, std_max)]
 
     gen = range(0, NGEN + 1)
-    print(gen)
 
     # Generate line plot
     # NOTE - Generate plots WITHOUT title since we will add a title in the report 
     fig, ax = plt.subplots()
-    # ax.set_title(f"{alg} Enemy {enemy} - Mean and Maximum Fitness vs Generation")
+    ax.set_title(f"{alg} Enemy {enemy} - Mean and Maximum Fitness per Generation\n{exp_name}")
     ax.set_xlabel('Generation')
     ax.set_ylabel('Fitness')
     ax.plot(gen, avg_mean, '-', label='average mean')
@@ -165,7 +171,7 @@ def plot_exp_stats(enemy, statistics, alg):
     ax.legend(loc='lower right', prop={'size': 15})
     ax.set_ylim(0, 100)
     ax.grid()
-    fig.savefig(f"{experiment_name}/plots/{alg}_enemy{enemy}.pdf")
+    fig.savefig(f"{experiment_name}/plots/{alg}_{exp_name}_enemy{enemy}.png")
     plt.close()
     # plt.show()
 
@@ -189,9 +195,29 @@ toolbox.register("population", tools.initRepeat, list, toolbox.individual, n=MU)
 
 # Register EA functions
 toolbox.register("evaluate", cust_evaluate)
-toolbox.register("mate", tools.cxTwoPoint) # crossover operator
-toolbox.register("mutate", tools.mutShuffleIndexes, indpb=0.5)
-toolbox.register("select", tools.selTournament,tournsize=2)
+
+if crossover == 'cxUniform':
+    toolbox.register("mate", tools.cxUniform, indpb=0.5)
+elif crossover == 'cxSimulatedBinary':
+    toolbox.register("mate", tools.cxSimulatedBinary, eta=2)
+else:
+    toolbox.register("mate", tools.cxTwoPoint) # crossover operator
+
+if mutation == 'mutGaussian':
+    toolbox.register("mutate", tools.mutGaussian, mu=0, sigma=0.5, indpb=0.5)
+elif mutation == 'mutFlipBit':
+    toolbox.register("mutate", tools.mutFlipBit, indpb=0.5)
+elif mutation == 'mutUniformInt':
+    toolbox.register("mutate", tools.mutUniformInt, low=-1, up=1, indpb=0.5)
+else:
+    toolbox.register("mutate", tools.mutShuffleIndexes, indpb=0.5)
+
+if selection == 'selRandom':
+    toolbox.register("select", tools.selRandom)
+elif selection == 'selRoulette':
+    toolbox.register("select", tools.selRoulette)
+else:
+    toolbox.register("select", tools.selTournament,tournsize=2)
 
 # Register statistics functions
 stats = tools.Statistics(lambda ind: ind.fitness.values)
@@ -215,7 +241,6 @@ def main():
             # We run the experiment a few times - n_runs
             for run in range(1, NRUN + 1):
                 # ---------------Initialize population ---------------
-                #pop = np.random.uniform(low=-1, high=1, size=(n_population, n_weights))
                 pop = toolbox.population(n=MU)
                 hof = tools.ParetoFront(eq_)
 
@@ -237,8 +262,9 @@ def main():
                 statistics.append(pd.DataFrame(logbook))
 
             # Write best individuals fitness values for enemy and experiment
-            write_best(best_individuals, experiment_name + "/best_results/best_weights/Best_individuals_" + experiment_name + alg, enemy)
-            plot_exp_stats(enemy, statistics, alg)
+            write_best(best_individuals, experiment_name + "/best_results/Best_individuals_" + experiment_name + alg, enemy)
+            exp_name = '_'.join([selection, mutation, crossover, str(MU), str(LAMBDA), str(NGEN), str(CXPB), str(MUTPB)])
+            plot_exp_stats(enemy, statistics, alg, exp_name)
             eval_best(best_individuals, experiment_name + "/best_results/best_individuals/", alg, enemy)
 
         # Write statistics for experiment

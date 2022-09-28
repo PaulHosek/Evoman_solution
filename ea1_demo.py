@@ -58,12 +58,6 @@ NGEN = int(environ.get("ngen", 30))
 CXPB = round(float(environ.get("cxpb", 0.8)),2)
 MUTPB = round(1-CXPB, 2)
 
-# TODO - DELETE WHEN DONE EXPERIMENTING!
-NRUN = 10
-NGEN = 10
-MU = 30
-LAMBDA = 30
-
 #deap_algorithms = ['eaMuPlusLambda', 'eaMuCommaLambda', 'eaSimple']
 deap_algorithms = ['eaMuPlusLambda']
 

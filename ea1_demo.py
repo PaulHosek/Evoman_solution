@@ -59,10 +59,10 @@ CXPB = round(float(environ.get("cxpb", 0.8)),2)
 MUTPB = round(1-CXPB, 2)
 
 # Manual override
-NRUN = 3
-NGEN = 5
-MU = 10
-LAMBDA = 10
+# NRUN = 3
+# NGEN = 5
+# MU = 10
+# LAMBDA = 10
 
 #deap_algorithms = ['eaMuPlusLambda', 'eaMuCommaLambda', 'eaSimple']
 deap_algorithms = ['eaMuPlusLambda']

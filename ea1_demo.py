@@ -37,7 +37,6 @@ if not os.path.exists(experiment_name):
     os.makedirs(experiment_name + '/best_results')
     os.makedirs(experiment_name + '/best_results' + '/best_weights')
     os.makedirs(experiment_name + '/best_results' + '/best_individuals')
-    os.makedirs(experiment_name + '/plotted_results')
     os.makedirs(experiment_name + '/plots')
 
 # DEFINE VARIABLES
@@ -59,6 +58,12 @@ NGEN = int(environ.get("ngen", 30))
 CXPB = round(float(environ.get("cxpb", 0.8)),2)
 MUTPB = round(1-CXPB, 2)
 
+# Manual override
+# NRUN = 3
+# NGEN = 5
+# MU = 10
+# LAMBDA = 10
+
 #deap_algorithms = ['eaMuPlusLambda', 'eaMuCommaLambda', 'eaSimple']
 deap_algorithms = ['eaMuPlusLambda']
 
@@ -73,20 +78,14 @@ env = Environment(experiment_name=experiment_name,
 # -------------------------------- Functions --------------------------------- #
 
 # a game simulation for environment env and game x
-def simulation(env,x):
-    fitness, player_life, enemy_life, game_time = env.play(pcont=x)
-    return fitness
+def simulation(x):
+    results = env.play(pcont=x)
+    return results
 
 # evaluation of game
 def cust_evaluate(x):
-    fitness = simulation(env,x)
+    fitness, player_life, enemy_life, game_time = simulation(x)
     return (fitness,)
-
-# Evaluate the individual gain
-def eval_ind_gain(x):
-    fitness, player_energy, enemy_energy, game_time = env.play(pcont=x)
-    return player_energy - enemy_energy
-
 
 # Determine individuals that need to be evaluated
 def evaluate_pop(pop):
@@ -104,45 +103,51 @@ def write_stats_in_file(stats, file):
         f.write(json.dumps(stat) + "\n")
 
 # Write best individuals in file
-def write_best(individuals, file, enemy):
+def write_best(individuals, folder, exp_name, alg, enemy):
     for count, individual in enumerate(individuals):
-        tmp = count + 1
-        with open(file + "_e" + str(enemy) + "_run" + str(tmp) + ".txt", "w+") as f:
+        run = count + 1
+        with open(f"{folder}exp-{exp_name}_alg-{alg}_enemy-{enemy}_run-{run}.txt", "w+") as f:
             for weight in individual:
                 f.write(str(weight) + "\n")
 
 # Test the best individual per run and save resulting statistics 
-def eval_best(individuals, folder, alg, enemy):
+def eval_best(individuals, folder, exp_name, alg, enemy):
     print("-- Evaluating Best Individuals --")
     # Iterate over the best individuals from each run
-    results = []
+    avg_results = []
     for ind in individuals:
         # Test each individual 5 times
-        results.append([eval_ind_gain(ind) for _ in range(5)])
+        tests = []
+        for _ in range(5):
+            tests.append(simulation(ind))
+        
+        # Take the average and append to results list
+        avg_results.append(np.mean(np.array(tests), axis=0))
+    
+    # Convert results to a dataframe
+    avg_results_df = pd.DataFrame(avg_results, columns=['Fitness', 'Player Life', 'Enemy Life', 'Time'])
+    
+    # Save results for future plotting
+    avg_results_df.to_csv(f"{folder}exp-{exp_name}_alg-{alg}_enemy-{enemy}.csv")
 
-    # Calculate the mean over the 5 runs
-    results = np.squeeze(np.array(results))
-    mean_results = np.mean(results, axis=1)
-
-    # Save the results to a text file for future plots
-    np.savetxt(f"{folder}alg-{alg}_enemy-{enemy}.txt", mean_results)
-
-    # Plot and save the box plot
+    # Generate a box plot for each simulation metric
     # NOTE - This plot will not be used directly in the report as it needs to
     # be grouped with the other box plots
     fig, ax = plt.subplots()
     ax.set_title(f"alg-{alg}_enemy-{enemy}")
-    ax.set_ylabel('Individual Gain')
-    ax.boxplot(mean_results, patch_artist=True, labels=[f"{alg}"])
+    ax.set_ylabel('Fitness')
+    ax.boxplot(avg_results_df['Fitness'], patch_artist=True, labels=[f"{alg}"])
     ax.yaxis.grid()
-    fig.savefig(f"{folder}alg-{alg}_enemy-{enemy}.pdf")
+    fig.savefig(f"{folder}exp-{exp_name}_alg-{alg}_enemy-{enemy}.pdf")
     plt.close()
 
 
-def plot_exp_stats(enemy, statistics, alg, exp_name):
-    # TO-DO:
-    # Save statistics before plotting in file so we can play more with the experiments data
+def plot_exp_stats(statistics, folder, exp_name, alg, enemy):
+    # Combine stats from all runs
     df_stat = pd.concat(statistics)
+
+    # Save results for future plotting
+    df_stat.to_csv(f"{folder}exp-{exp_name}_alg-{alg}_enemy-{enemy}.csv")
 
     # Avg and std of means
     avg_mean = df_stat.groupby(['gen'])['mean'].mean().to_numpy()
@@ -171,7 +176,7 @@ def plot_exp_stats(enemy, statistics, alg, exp_name):
     ax.legend(loc='lower right', prop={'size': 15})
     ax.set_ylim(0, 100)
     ax.grid()
-    fig.savefig(f"{experiment_name}/plots/{alg}_{exp_name}_enemy{enemy}.png")
+    fig.savefig(f"{folder}exp-{exp_name}_alg-{alg}_enemy-{enemy}.png")
     plt.close()
     # plt.show()
 
@@ -244,7 +249,7 @@ def main():
                 pop = toolbox.population(n=MU)
                 hof = tools.ParetoFront(eq_)
 
-                print("Start of evolution player %i run %i" % (enemy, run))
+                print("Start of evolution enemy %i run %i" % (enemy, run))
                 if alg == 'eaMuPlusLambda':
                     pop, logbook = algorithms.eaMuPlusLambda(pop, toolbox, mu=MU, lambda_=LAMBDA,
                                                          cxpb=CXPB, mutpb=MUTPB, ngen=NGEN,
@@ -263,9 +268,9 @@ def main():
 
             # Write best individuals fitness values for enemy and experiment
             exp_name = '_'.join([selection, mutation, crossover, str(MU), str(LAMBDA), str(NGEN), str(CXPB), str(MUTPB)])
-            plot_exp_stats(enemy, statistics, alg, exp_name)
-            write_best(best_individuals, experiment_name + "/best_results/Best_individuals_" + experiment_name + alg, enemy)
-            eval_best(best_individuals, experiment_name + "/best_results/best_individuals/", alg, enemy)
+            plot_exp_stats(statistics, experiment_name + "/plots/", exp_name, alg, enemy)
+            write_best(best_individuals, experiment_name + "/best_results/best_weights/", exp_name, alg, enemy)
+            eval_best(best_individuals, experiment_name + "/best_results/best_individuals/", exp_name, alg, enemy)
 
         # Write statistics for experiment
         #write_stats_in_file(log,"log_stats_" + experiment_name + alg + ".txt")

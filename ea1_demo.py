@@ -42,13 +42,13 @@ if not os.path.exists(experiment_name):
 # DEFINE VARIABLES
 NRUN = 10 #should be 10
 
-enemies = [1] #list of player enemies - any from 1-8
 n_hidden_neurons = 10
 max_budget = 500 #default is 3000
 enemymode = "static" #default is ai
 players_life = 100
 
 # Read environment variables
+enemies = [int(environ.get("enemy", 1))]
 selection = environ.get("sel", 'selTournament')
 mutation = environ.get("mut", 'mutShuffleIndexes')
 crossover = environ.get("cx", 'cxTwoPoint')
@@ -205,6 +205,8 @@ if crossover == 'cxUniform':
     toolbox.register("mate", tools.cxUniform, indpb=0.5)
 elif crossover == 'cxSimulatedBinary':
     toolbox.register("mate", tools.cxSimulatedBinary, eta=2)
+elif crossover == 'cxBlend':
+    toolbox.register("mate", tools.cxBlend, alpha=0.5)
 else:
     toolbox.register("mate", tools.cxTwoPoint) # crossover operator
 
@@ -239,7 +241,7 @@ def main():
         print("Algorithm: %s" % alg)
         # For each of the n enemies we want to run the experiment for:
         for enemy in enemies:
-            
+
             best_individuals = []
             statistics = []
 

@@ -1,12 +1,17 @@
 # --------------------- Import Frameworks and Libraries ---------------------- #
+import operator
 import sys, os
 import json
-import time
 
 import numpy as np
+import pandas as pd
+import matplotlib
+matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 import multiprocessing as mp
 from deap import tools, creator, base, algorithms
+from os import environ
+
 
 if os.environ.get('EVOMAN_FAST'):
     print("\nUsing evoman_fast!!! ...vrooom\n")
@@ -21,75 +26,75 @@ from demo_controller import player_controller
 # ---------------------------------- Setup ----------------------------------- #
 
 # Prevent graphics and audio rendering to speed up simulations
-os.environ["SDL_VIDEODRIVER"] = "dummy"
-os.environ["SDL_AUDIODRIVER"] = "dummy"
-os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide"
+environ["SDL_VIDEODRIVER"] = "dummy"
+environ["SDL_AUDIODRIVER"] = "dummy"
+environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide"
 
 # Create experiment folder if needed
 experiment_name = 'ea_exp'
 if not os.path.exists(experiment_name):
     os.makedirs(experiment_name)
     os.makedirs(experiment_name + '/best_results')
-    os.makedirs(experiment_name + '/plotted_results')
+    os.makedirs(experiment_name + '/best_results' + '/best_weights')
+    os.makedirs(experiment_name + '/best_results' + '/best_individuals')
     os.makedirs(experiment_name + '/plots')
 
 # DEFINE VARIABLES
-# environment variables
-enemies = [1] #list of player enemies - any from 1-8
-n_runs = 10 #should be 10
-gen_size = 30 #should be 100?
-pop_size = 100
+NRUN = 10 #should be 10
+
 n_hidden_neurons = 10
 max_budget = 500 #default is 3000
-difficulty_level = 2 #default is 1
 enemymode = "static" #default is ai
 players_life = 100
-deap_algorithms = ['eaMuPlusLambda', 'eaMuCommaLambda', 'eaSimple']
-#deap_algorithms = ['eaMuCommaLambda']
 
-# deap variables
-mating_prob = 1
-crossover_rate = 0.8
-mutation = 0.2
-toolbox, log = None, None
+# Read environment variables
+enemies = [int(environ.get("enemy", 1))]
+selection = environ.get("sel", 'selTournament')
+mutation = environ.get("mut", 'mutShuffleIndexes')
+crossover = environ.get("cx", 'cxTwoPoint')
+MU = int(environ.get("mu", 100))
+LAMBDA = int(environ.get("lambda", 100))
+NGEN = int(environ.get("ngen", 30))
+CXPB = round(float(environ.get("cxpb", 0.8)),2)
+MUTPB = round(1-CXPB, 2)
+
+# Manual override
+# NRUN = 3
+# NGEN = 5
+# MU = 10
+# LAMBDA = 10
+
+#deap_algorithms = ['eaMuPlusLambda', 'eaMuCommaLambda', 'eaSimple']
+deap_algorithms = ['eaMuPlusLambda']
 
 # Initialise the game environment for the chosen settings
 env = Environment(experiment_name=experiment_name,
                   enemies=enemies,
                   player_controller=player_controller(n_hidden_neurons),
                   enemymode="static",
-                  level=difficulty_level,
                   speed="fastest",
                   timeexpire=max_budget)
 
 # -------------------------------- Functions --------------------------------- #
 
 # a game simulation for environment env and game x
-def simulation(env,x):
-    fitness, player_life, enemy_life, game_time = env.play(pcont=x)
-    return fitness
+def simulation(x):
+    results = env.play(pcont=x)
+    return results
 
 # evaluation of game
 def cust_evaluate(x):
-    sim = simulation(env,x)
-    return (sim,)
+    fitness, player_life, enemy_life, game_time = simulation(x)
+    return (fitness,)
 
 # Determine individuals that need to be evaluated
-def evaluate_pop(env, pop):
+def evaluate_pop(pop):
     # Evaluate the individuals with an invalid fitness
     invalid_ind = [indiv for indiv in pop if not indiv.fitness.valid]
     fitness = toolbox.map(toolbox.evaluate, invalid_ind)
-    for indiv, fit in zip(pop, fitness):
-        indiv.fitness.values = fit
+    for individual, fit in zip(pop, fitness):
+        individual.fitness.values = fit
     return pop
-
-# get statistics about game
-def get_stats(pop, gen):
-    fitness_vals = [individual.fitness.values[0] for individual in pop]
-    mean_fit = sum(fitness_vals) / len(pop)
-    max_fit = np.max(fitness_vals)
-    print("---- Gen: %i --> Mean: %.2f ,Max %.2f" % (gen, mean_fit, max_fit))
-    return mean_fit, max_fit
 
 # write statistics
 def write_stats_in_file(stats, file):
@@ -97,146 +102,183 @@ def write_stats_in_file(stats, file):
     for stat in stats:
         f.write(json.dumps(stat) + "\n")
 
-# Record statistics in deap logger
-def record_stat(pop, generation, run, enemy, best):
-    global log
-    best.update(pop)
-    mean_fit, max_fit = get_stats(pop, generation)
-    statistic = {"mean": mean_fit, "max": max_fit}
-    log.record(enemy=enemy, run=run, gen=generation, individuals=len(pop), **statistic)
-    return [mean_fit, max_fit]
-
 # Write best individuals in file
-def write_best(individuals, file, enemy):
+def write_best(individuals, folder, exp_name, alg, enemy):
     for count, individual in enumerate(individuals):
-        tmp = count + 1
-        f = open(file + "_e" + str(enemy) + "_i" + str(tmp) + ".txt", "w+")
-        for weight in individual:
-            f.write(str(weight) + "\n")
+        run = count + 1
+        with open(f"{folder}exp-{exp_name}_alg-{alg}_enemy-{enemy}_run-{run}.txt", "w+") as f:
+            for weight in individual:
+                f.write(str(weight) + "\n")
 
-def plot_exp_stats(enemy, statistics, alg):
-    # TO-DO:
-    # Save statistics before plotting in file so we can play more with the experiments data
-    x = range(1, gen_size + 1)
-    means = np.transpose(np.mean(statistics, axis=0)) #this migjt be automatically done with seaborn
-    # stds = np.transpose(np.std(statistics, axis=0))
+# Test the best individual per run and save resulting statistics 
+def eval_best(individuals, folder, exp_name, alg, enemy):
+    print("-- Evaluating Best Individuals --")
+    # Iterate over the best individuals from each run
+    avg_results = []
+    for ind in individuals:
+        # Test each individual 5 times
+        tests = []
+        for _ in range(5):
+            tests.append(simulation(ind))
+        
+        # Take the average and append to results list
+        avg_results.append(np.mean(np.array(tests), axis=0))
+    
+    # Convert results to a dataframe
+    avg_results_df = pd.DataFrame(avg_results, columns=['Fitness', 'Player Life', 'Enemy Life', 'Time'])
+    
+    # Save results for future plotting
+    avg_results_df.to_csv(f"{folder}exp-{exp_name}_alg-{alg}_enemy-{enemy}.csv")
 
-    plt.figure(figsize=(10, 8))
-    plt.title("%s Enemy %i - Average and Maximum Fitness of each Generation" % (alg, enemy))
-    plt.xlabel("Generation")
-    plt.ylabel("Fitness")
-    plt.plot(x, means[0], color="red", label="Mean Fitness")
-    plt.plot(x, means[1], color="blue", label="Maximum Fitness")
-    plt.legend(loc="lower right")
-    plt.savefig(experiment_name + '/plots/' + alg + '_enemy' + str(enemy) + '.png')
-    plt.ylim(0, 100)
-    plt.show()
+    # Generate a box plot for each simulation metric
+    # NOTE - This plot will not be used directly in the report as it needs to
+    # be grouped with the other box plots
+    fig, ax = plt.subplots()
+    ax.set_title(f"alg-{alg}_enemy-{enemy}")
+    ax.set_ylabel('Fitness')
+    ax.boxplot(avg_results_df['Fitness'], patch_artist=True, labels=[f"{alg}"])
+    ax.yaxis.grid()
+    fig.savefig(f"{folder}exp-{exp_name}_alg-{alg}_enemy-{enemy}.pdf")
+    plt.close()
 
-# TO-DO: simplify this and call the existing DEAP functions
-def create_next_generation(env, pop, alg="eaSimple"):
-    global pop_size
-    #mu and lambda are pop_size
-    if alg == 'eaSimple':
-        # Select the next generation individuals
-        offspring = toolbox.select(pop, len(pop))
-        # Vary the pool of individuals
-        offspring = algorithms.varAnd(offspring, toolbox, mating_prob, mutation)
-        # Evaluate the individuals with an invalid fitness
-        offspring = evaluate_pop(env, offspring)
-        # Replace the current population by the offspring
-        pop[:] = offspring
-    elif alg == 'eaMuPlusLambda':
-         # Vary the population
-         offspring = algorithms.varOr(pop, toolbox, pop_size, crossover_rate, mutation)
-         # Evaluate the individuals with an invalid fitness
-         offspring = evaluate_pop(env, offspring)
-         # Select the next generation population
-         pop[:] = toolbox.select(pop + offspring, pop_size)
-    elif alg == 'eaMuCommaLambda':
-         # Vary the population
-         offspring = algorithms.varOr(pop, toolbox, pop_size, crossover_rate, mutation)
-         # Evaluate the individuals with an invalid fitness
-         offspring = evaluate_pop(env, offspring)
-         # Select the next generation population
-         pop[:] = toolbox.select(offspring, pop_size)
 
-    # get best results
-    best = tools.HallOfFame(1, similar=np.array_equal)
-    return pop, best
+def plot_exp_stats(statistics, folder, exp_name, alg, enemy):
+    # Combine stats from all runs
+    df_stat = pd.concat(statistics)
+
+    # Save results for future plotting
+    df_stat.to_csv(f"{folder}exp-{exp_name}_alg-{alg}_enemy-{enemy}.csv")
+
+    # Avg and std of means
+    avg_mean = df_stat.groupby(['gen'])['mean'].mean().to_numpy()
+    std_mean = df_stat.groupby(['gen'])['mean'].std().to_numpy()
+    avg_mean_plus_std = [a + b for a, b in zip(avg_mean, std_mean)]
+    avg_mean_minus_std = [a - b for a, b in zip(avg_mean, std_mean)]
+
+    # Avg and std of maxes
+    avg_max = df_stat.groupby(['gen'])['max'].mean().to_numpy()
+    std_max = df_stat.groupby(['gen'])['max'].std().to_numpy()
+    avg_max_plus_std = [a + b for a, b in zip(avg_max, std_max)]
+    avg_max_minus_std = [a - b for a, b in zip(avg_max, std_max)]
+
+    gen = range(0, NGEN + 1)
+
+    # Generate line plot
+    # NOTE - Generate plots WITHOUT title since we will add a title in the report 
+    fig, ax = plt.subplots()
+    ax.set_title(f"{alg} Enemy {enemy} - Mean and Maximum Fitness per Generation\n{exp_name}")
+    ax.set_xlabel('Generation')
+    ax.set_ylabel('Fitness')
+    ax.plot(gen, avg_mean, '-', label='average mean')
+    ax.fill_between(gen, avg_mean_minus_std, avg_mean_plus_std, alpha=0.2)
+    ax.plot(gen, avg_max, '-', label='average max')
+    ax.fill_between(gen, avg_max_minus_std, avg_max_plus_std, alpha=0.2)
+    ax.legend(loc='lower right', prop={'size': 15})
+    ax.set_ylim(0, 100)
+    ax.grid()
+    fig.savefig(f"{folder}exp-{exp_name}_alg-{alg}_enemy-{enemy}.png")
+    plt.close()
+    # plt.show()
 
 # ----------------------------- Initialise DEAP ------------------------------ #
 
 # deap - creating types: Fitness, Individual and Population
 # Fitness - tuple, we give one for single objective, 1.0 for maximizing
-creator.create("FitnessBest", base.Fitness, weights=(1.0,))
+creator.create("FitnessMax", base.Fitness, weights=(1.0,))
 # Individual class inherited from numpy.ndarray
-creator.create('Individual', np.ndarray, fitness=creator.FitnessBest, player_life=players_life, enemy_life=players_life)
+creator.create('Individual', np.ndarray, fitness=creator.FitnessMax, player_life=players_life, enemy_life=players_life)
 
 # OPERATORS & INITIALIZATIONS OF CLASSES
 toolbox = base.Toolbox()
 # population drawn from uniform distribution
 toolbox.register("indices", np.random.uniform, -1, 1)
 
-# Register functions
-toolbox.register("evaluate", cust_evaluate)
-toolbox.register("mate", tools.cxTwoPoint) # crossover operator
-toolbox.register("mutate", tools.mutShuffleIndexes, indpb=0.5)
-toolbox.register("select", tools.selTournament,tournsize=2)
+# number of weights for multilayer network with n_hidden_neurons
+n_weights = (env.get_num_sensors() + 1) * n_hidden_neurons + (n_hidden_neurons + 1) * 5
+toolbox.register("individual", tools.initRepeat, creator.Individual, toolbox.indices, n=n_weights)
+toolbox.register("population", tools.initRepeat, list, toolbox.individual, n=MU)
 
-# Initialize deap logbook
-log = tools.Logbook()
-log.header = ['enemy','run','generation','population size','fitness mean','fitness max']
+# Register EA functions
+toolbox.register("evaluate", cust_evaluate)
+
+if crossover == 'cxUniform':
+    toolbox.register("mate", tools.cxUniform, indpb=0.5)
+elif crossover == 'cxSimulatedBinary':
+    toolbox.register("mate", tools.cxSimulatedBinary, eta=2)
+elif crossover == 'cxBlend':
+    toolbox.register("mate", tools.cxBlend, alpha=0.5)
+else:
+    toolbox.register("mate", tools.cxTwoPoint) # crossover operator
+
+if mutation == 'mutGaussian':
+    toolbox.register("mutate", tools.mutGaussian, mu=0, sigma=0.5, indpb=0.5)
+elif mutation == 'mutFlipBit':
+    toolbox.register("mutate", tools.mutFlipBit, indpb=0.5)
+elif mutation == 'mutUniformInt':
+    toolbox.register("mutate", tools.mutUniformInt, low=-1, up=1, indpb=0.5)
+else:
+    toolbox.register("mutate", tools.mutShuffleIndexes, indpb=0.5)
+
+if selection == 'selRandom':
+    toolbox.register("select", tools.selRandom)
+elif selection == 'selRoulette':
+    toolbox.register("select", tools.selRoulette)
+else:
+    toolbox.register("select", tools.selTournament,tournsize=2)
+
+# Register statistics functions
+stats = tools.Statistics(lambda ind: ind.fitness.values)
+stats.register("mean", np.mean)
+stats.register("max", np.max)
 
 # ---------------------------------- Main ------------------------------------ #
+
+def eq_(var1, var2):
+    return operator.eq(var1, var2).all()
 
 def main():
     for alg in deap_algorithms:
         print("Algorithm: %s" % alg)
         # For each of the n enemies we want to run the experiment for:
         for enemy in enemies:
-            # number of weights for multilayer network with n_hidden_neurons
-            n_weights = (env.get_num_sensors() + 1) * n_hidden_neurons + (n_hidden_neurons + 1) * 5
-            toolbox.register("individual", tools.initRepeat, creator.Individual, toolbox.indices, n=n_weights)
-            toolbox.register("population", tools.initRepeat, list, toolbox.individual, n=pop_size)
 
             best_individuals = []
             statistics = []
 
             # We run the experiment a few times - n_runs
-            for run in range(1,n_runs+1):
-                start_time = time.time()
-                gen_stat = []
-
+            for run in range(1, NRUN + 1):
                 # ---------------Initialize population ---------------
-                #pop = np.random.uniform(low=-1, high=1, size=(n_population, n_weights))
-                pop = toolbox.population(n=pop_size)
-                #evaluate first generation
-                pop = evaluate_pop(env, pop)
-                best = tools.HallOfFame(1, similar=np.array_equal)
-                # record these best results in file
-                stat = record_stat(pop, generation=0, run=run, enemy=enemy, best=best)
-                gen_stat.append(stat)
+                pop = toolbox.population(n=MU)
+                hof = tools.ParetoFront(eq_)
 
-                print("Start of evolution player %i run %i" % (enemy, run))
-                for generation in range(1, gen_size):
-                    pop, best = create_next_generation(env, pop, alg)
-                    # record these best results in file
-                    stat = record_stat(pop, generation=generation, run=run, enemy=enemy, best=best)
-                    gen_stat.append(stat)
+                print("Start of evolution enemy %i run %i" % (enemy, run))
+                if alg == 'eaMuPlusLambda':
+                    pop, logbook = algorithms.eaMuPlusLambda(pop, toolbox, mu=MU, lambda_=LAMBDA,
+                                                         cxpb=CXPB, mutpb=MUTPB, ngen=NGEN,
+                                                         stats=stats, halloffame=hof)
+                elif alg == 'eaMuCommaLambda':
+                    pop, logbook = algorithms.eaMuCommaLambda(pop, toolbox, mu=MU, lambda_=LAMBDA,
+                                                         cxpb=CXPB, mutpb=MUTPB, ngen=NGEN,
+                                                         stats=stats, halloffame=hof)
+                elif alg == 'eaSimple':
+                    pop, logbook = algorithms.eaSimple(pop, toolbox, cxpb=CXPB, mutpb=MUTPB, ngen=NGEN,
+                                                        stats=stats, halloffame=hof)
 
                 print("-- End of (successful) evolution --")
-                statistics.append(gen_stat)
-                best_individuals.append(best[0])
-                print("---- %s seconds elapsed ----" % (time.time() - start_time))
+                best_individuals.append(hof[0])
+                statistics.append(pd.DataFrame(logbook))
 
             # Write best individuals fitness values for enemy and experiment
-            write_best(best_individuals, experiment_name + "/best_results/Best_individuals_" + experiment_name + alg, enemy)
-            plot_exp_stats(enemy, statistics, alg)
+            exp_name = '_'.join([selection, mutation, crossover, str(MU), str(LAMBDA), str(NGEN), str(CXPB), str(MUTPB)])
+            plot_exp_stats(statistics, experiment_name + "/plots/", exp_name, alg, enemy)
+            write_best(best_individuals, experiment_name + "/best_results/best_weights/", exp_name, alg, enemy)
+            eval_best(best_individuals, experiment_name + "/best_results/best_individuals/", exp_name, alg, enemy)
 
         # Write statistics for experiment
-        write_stats_in_file(log,"log_stats_" + experiment_name + alg + ".txt")
+        #write_stats_in_file(log,"log_stats_" + experiment_name + alg + ".txt")
 
 if __name__ == "__main__":
+    # Use multiprocessing map implementation for parallelization
     pool = mp.Pool(processes=mp.cpu_count())
     toolbox.register('map', pool.map)
 

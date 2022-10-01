@@ -2,7 +2,7 @@ from scipy.stats import ttest_ind, wilcoxon
 import numpy as np
 
 
-def gen_ig_grid(f_prefix_path):
+def gen_ig_grid(f_prefix_path, nr_enemies = 8):
     """
     Generate Individual gain 2d array to compare 2 algorithms on 10 runs each.
 
@@ -12,17 +12,22 @@ def gen_ig_grid(f_prefix_path):
 
     @return: np.array of size 10, 8 (run, enemy).
     """
-    grid_ig = np.zeros((10, 8))
-    for i in range(1, 9):
+    grid_ig = np.zeros((10, nr_enemies))
+    for i in range(1, nr_enemies+1):
         with open(f_prefix_path + str(i) + ".csv") as f:
+            # idx, fitness, player, enemy, time
             cur = np.genfromtxt(f, delimiter=',')[1:]  # remove header row
-            grid_ig[:, i - 1] = cur[:, 1] = cur[:, 2]
+            grid_ig[:, i - 1] = cur[:, 2] - cur[:, 3]
     return grid_ig
+
+
+
 
 
 # generate data grids
 blend_fname = "exp-selTournament_mutUniformInt_cxBlend_100_100_50_0.8_0.2_alg-eaMuPlusLambda_enemy-"
 sbx_fname = "exp-selTournament_mutUniformInt_cxSimulatedBinary_100_100_50_0.8_0.2_alg-eaMuPlusLambda_enemy-"
+
 blend_igs = gen_ig_grid(f_prefix_path=blend_fname)
 sbx_igs = gen_ig_grid(f_prefix_path=sbx_fname)
 
@@ -43,6 +48,5 @@ res_paried = wilcoxon(blend_means, sbx_means)
 print("Non-parametric paired samples t-test results. Significant if at alpha = 0.05")
 print(res_paried)
 
-# for enemy in range(8):
-#     mean_igs[enemy] = np.mean(blend_igs[:, enemy], sbx_igs[:, enemy])
-# print(mean_igs)
+
+# ----------------------------------------------------------------------------------------------------------------------

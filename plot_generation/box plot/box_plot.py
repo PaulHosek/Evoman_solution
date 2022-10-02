@@ -5,20 +5,20 @@ import numpy as np
 # -------------------------------- Settings --------------------------------- #
 
 # ------- EA 1 ------- #
-filename1A = "exp-selTournament_mutUniformInt_cxBlend_100_100_100_0.8_0.2_alg-eaMuPlusLambda_enemy-7.csv"
-filename1B = "exp-selTournament_mutUniformInt_cxBlend_100_100_100_0.8_0.2_alg-eaMuPlusLambda_enemy-4.csv"
-filename1C = "exp-selTournament_mutUniformInt_cxBlend_100_100_100_0.8_0.2_alg-eaMuPlusLambda_enemy-6.csv"
+filename1A = "exp-selTournament_mutUniformInt_cxBlend_150_150_100_0.8_0.2_alg-eaMuPlusLambda_enemy-2.csv"
+filename1B = "exp-selTournament_mutUniformInt_cxBlend_150_150_100_0.8_0.2_alg-eaMuPlusLambda_enemy-3.csv"
+filename1C = "exp-selTournament_mutUniformInt_cxBlend_150_150_100_0.8_0.2_alg-eaMuPlusLambda_enemy-6.csv"
 
 # ------- EA 2 ------- #
-filename2A = "exp-selTournament_mutUniformInt_cxSimulatedBinary_100_100_100_0.8_0.2_alg-eaMuPlusLambda_enemy-7.csv"
-filename2B = "exp-selTournament_mutUniformInt_cxSimulatedBinary_100_100_100_0.8_0.2_alg-eaMuPlusLambda_enemy-4.csv"
-filename2C = "exp-selTournament_mutUniformInt_cxSimulatedBinary_100_100_100_0.8_0.2_alg-eaMuPlusLambda_enemy-6.csv"
+filename2A = "exp-selTournament_mutUniformInt_cxSimulatedBinary_150_150_100_0.8_0.2_alg-eaMuPlusLambda_enemy-2.csv"
+filename2B = "exp-selTournament_mutUniformInt_cxSimulatedBinary_150_150_100_0.8_0.2_alg-eaMuPlusLambda_enemy-3.csv"
+filename2C = "exp-selTournament_mutUniformInt_cxSimulatedBinary_150_150_100_0.8_0.2_alg-eaMuPlusLambda_enemy-6.csv"
 
 color1 = '#F9ACB1'
 color2 = '#96C4DB'
 
 box_width = 0.6
-axis_font_size = 14
+axis_font_size = 18
 legend_size = 18
 
 # -------------------------- Read and Prepare Data -------------------------- #
@@ -87,7 +87,7 @@ for median in bplot2['medians']:
 # Use dummy lines to create a legend
 plt.plot([], c=color1, linewidth=6, label=r'BLX-$\alpha$')
 plt.plot([], c=color2, linewidth=6, label='SBX')
-plt.legend(loc='upper right', prop={'size': legend_size}, borderpad=0.25)
+plt.legend(loc='lower left', prop={'size': legend_size}, borderpad=0.25)
 
 # Formatting
 enemy_nums = [filename1A[-5], filename1B[-5], filename1C[-5],]

@@ -7,17 +7,17 @@ import matplotlib.pyplot as plt
 alpha = 0.15
 linewidth = 2
 legend_size = 18
-axis_font_size = 14
+axis_font_size = 18
 tick_label_size = 13
 axes_aspect_ratio = 1.0
 
 # ------- EA 1 ------- #
-filename1 = "exp-selTournament_mutUniformInt_cxBlend_100_100_100_0.8_0.2_alg-eaMuPlusLambda_enemy-7.csv"
+filename1 = "exp-selTournament_mutUniformInt_cxBlend_150_150_100_0.8_0.2_alg-eaMuPlusLambda_enemy-7.csv"
 mean_colour1 = '#d62728'
 max_colour1 = '#ff7f0e'
 
 # ------- EA 2 ------- #
-filename2 = "exp-selTournament_mutUniformInt_cxSimulatedBinary_100_100_100_0.8_0.2_alg-eaMuPlusLambda_enemy-7.csv"
+filename2 = "exp-selTournament_mutUniformInt_cxSimulatedBinary_150_150_100_0.8_0.2_alg-eaMuPlusLambda_enemy-7.csv"
 mean_colour2 = '#1f77b4'
 max_colour2 = '#17becf'
 
@@ -69,7 +69,7 @@ ax1.plot(gen, avg_mean2, '-', linewidth=linewidth, label='SBX', color=mean_colou
 ax1.fill_between(gen, avg_mean_minus_std2, avg_mean_plus_std2, alpha=alpha, color=mean_colour2)
 
 # Labels
-ax1.set_title('Means', fontsize=axis_font_size)
+ax1.set_title('Average Means', fontsize=axis_font_size)
 ax1.set_xlabel('Generation', fontsize=axis_font_size)
 ax1.set_ylabel('Fitness', fontsize=axis_font_size)
 ax1.legend(loc='lower right', prop={'size': legend_size})
@@ -95,7 +95,7 @@ ax2.plot(gen, avg_max2, '-', linewidth=linewidth, label='SBX', color=max_colour2
 ax2.fill_between(gen, avg_max_minus_std2, avg_max_plus_std2, alpha=alpha, color=max_colour2)
 
 # Labels
-ax2.set_title('Maximums', fontsize=axis_font_size)
+ax2.set_title('Average Maximums', fontsize=axis_font_size)
 ax2.set_xlabel('Generation', fontsize=axis_font_size)
 ax2.legend(loc='lower right', prop={'size': legend_size})
 

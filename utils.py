@@ -1,5 +1,12 @@
-import matplotlib.pyplot as plt
 import pandas as pd
+import numpy as np
+import matplotlib
+import json
+
+matplotlib.use('TkAgg')
+from task2 import simulation
+import matplotlib.pyplot as plt
+
 
 
 def plot_exp_stats(statistics, folder, exp_name, alg, enemy, ngen):
@@ -21,7 +28,7 @@ def plot_exp_stats(statistics, folder, exp_name, alg, enemy, ngen):
     avg_max_plus_std = [a + b for a, b in zip(avg_max, std_max)]
     avg_max_minus_std = [a - b for a, b in zip(avg_max, std_max)]
 
-    gen = range(0, ngen + 1)
+    gen = range(0, ngen)
 
     # Generate line plot
     # NOTE - Generate plots WITHOUT title since we will add a title in the report
@@ -53,3 +60,35 @@ def write_best(individuals, folder, exp_name, alg, enemy):
         with open(f"{folder}exp-{exp_name}_alg-{alg}_enemy-{enemy}_run-{run}.txt", "w+") as f:
             for weight in individual:
                 f.write(str(weight) + "\n")
+
+
+# Test the best individual per run and save resulting statistics
+def eval_best(individuals, folder, exp_name, alg, enemy):
+    print("-- Evaluating Best Individuals --")
+    # Iterate over the best individuals from each run
+    avg_results = []
+    for ind in individuals:
+        # Test each individual 5 times
+        tests = []
+        for _ in range(5):
+            tests.append(simulation(ind))
+
+        # Take the average and append to results list
+        avg_results.append(np.mean(np.array(tests), axis=0))
+
+    # Convert results to a dataframe
+    avg_results_df = pd.DataFrame(avg_results, columns=['Fitness', 'Player Life', 'Enemy Life', 'Time'])
+
+    # Save results for future plotting
+    avg_results_df.to_csv(f"{folder}exp-{exp_name}_alg-{alg}_enemy-{enemy}.csv")
+
+    # Generate a box plot for each simulation metric
+    # NOTE - This plot will not be used directly in the report as it needs to
+    # be grouped with the other box plots
+    fig, ax = plt.subplots()
+    ax.set_title(f"alg-{alg}_enemy-{enemy}")
+    ax.set_ylabel('Fitness')
+    ax.boxplot(avg_results_df['Fitness'], patch_artist=True, labels=[f"{alg}"])
+    ax.yaxis.grid()
+    fig.savefig(f"{folder}exp-{exp_name}_alg-{alg}_enemy-{enemy}.pdf")
+    plt.close()

@@ -2,24 +2,17 @@
 import math
 import operator
 import sys, os
-import json
 import utils
-
 import numpy as np
 import pandas as pd
-import matplotlib
-matplotlib.use('TkAgg')
-import matplotlib.pyplot as plt
 import multiprocessing as mp
+
 from deap import tools, creator, base, algorithms
 from os import environ
 from deap import cma
 
-
-print("\nUsing evoman_fast!!! ...vrooom\n")
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), 'evoman_fast'))
-
-from evoman.environment import Environment
+sys.path.insert(0, 'evoman_fast')
+from environment import Environment
 from demo_controller import player_controller
 
 # Create experiment folder if needed
@@ -37,7 +30,7 @@ os.environ['SDL_AUDIODRIVER'] = 'dummy'
 os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = 'hide'
 
 # Read environment variables
-NRUN = int(environ.get("NRUN", 2))
+NRUN = int(environ.get("NRUN", 1))
 enemies = list(map(int, environ.get("enemy", '7-8').split('-')))
 MU = int(environ.get("mu", 10))
 LAMBDA = int(environ.get("lambda", 20))
@@ -92,8 +85,10 @@ elif strategy == 'cma-mo':
 else:
     cma_es = cma.Strategy(centroid=np.random.uniform(-1, 1, n_weights), sigma=math.sqrt(1 / LAMBDA), lambda_=LAMBDA)
 
-creator.create("FitnessMax", base.Fitness, weights=(1.0,))
-creator.create('Individual', np.ndarray, fitness=creator.FitnessMax, player_life=100, enemy_life=100)
+if not hasattr(creator, 'FitnessMax'):
+    creator.create("FitnessMax", base.Fitness, weights=(1.0,))
+if not hasattr(creator, 'Individual'):
+    creator.create('Individual', np.ndarray, fitness=creator.FitnessMax, player_life=100, enemy_life=100)
 
 toolbox = base.Toolbox()
 toolbox.register("evaluate", cust_evaluate)
@@ -107,20 +102,29 @@ stats.register("max", np.max)
 
 # ---------------------------------- Main ------------------------------------ #
 def main():
+    best_individuals = []
+    statistics = []
+
+    pool = mp.Pool(processes=mp.cpu_count())
+    toolbox.register("map", pool.map)
     # We run the experiment a few times - n_runs
     for run in range(1, NRUN + 1):
-        print(f"Start of evolution enemies {enemies} run {run}")
+        print(f"{strategy} strategy -- Start of evolution enemies {enemies} run {run}")
 
         hof = tools.ParetoFront(eq_)
         pop, logbook = algorithms.eaGenerateUpdate(toolbox, ngen=NGEN, stats=stats, halloffame=hof)
 
+        best_individuals.append(hof[0])
+        statistics.append(pd.DataFrame(logbook))
+
         print("-- End of (successful) evolution --")
 
-if __name__ == "__main__":
-    # Use multiprocessing map implementation for parallelization
-    pool = mp.Pool(processes=mp.cpu_count())
-    toolbox.register('map', pool.map)
-
-    main()
-
+        # Write best individuals fitness values for enemy and experiment
+        exp_name = f"{MU}_{LAMBDA}_{NGEN}"
+        utils.plot_exp_stats(statistics, experiment_name + "/plots/", exp_name, strategy, str(enemies), NGEN)
+        utils.write_best(best_individuals, experiment_name + "/best_results/best_weights/", exp_name, strategy, str(enemies))
+        utils.eval_best(best_individuals, experiment_name + "/best_results/best_individuals/", exp_name, strategy, str(enemies))
     pool.close()
+
+if __name__ == "__main__":
+    main()

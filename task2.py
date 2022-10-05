@@ -44,6 +44,7 @@ LAMBDA = int(environ.get("lambda", 20))
 NGEN = int(environ.get("ngen", 500))
 multiple_mode = 'yes' if len(enemies) > 1 else 'no'
 n_hidden_neurons = 10
+strategy = environ.get("strategy", 'cma')
 
 # Initialise the game environment for the chosen settings
 env = Environment(experiment_name=experiment_name,
@@ -82,7 +83,14 @@ def eq_(var1, var2):
 # ----------------------------- Initialise DEAP ------------------------------ #
 
 n_weights = (env.get_num_sensors() + 1) * n_hidden_neurons + (n_hidden_neurons + 1) * 5
-cma_es = cma.Strategy(centroid=np.random.uniform(-1, 1, n_weights), sigma=math.sqrt(1/LAMBDA), lambda_=LAMBDA)
+if strategy == 'cma-pl':
+    # TO-DO https://deap.readthedocs.io/en/master/api/algo.html#deap.cma.StrategyOnePlusLambda
+    cma_es = cma.Strategy(centroid=np.random.uniform(-1, 1, n_weights), sigma=math.sqrt(1/LAMBDA), lambda_=LAMBDA)
+elif strategy == 'cma-mo':
+    # TO-DO https://deap.readthedocs.io/en/master/api/algo.html#deap.cma.StrategyMultiObjective
+    cma_es = cma.Strategy(centroid=np.random.uniform(-1, 1, n_weights), sigma=math.sqrt(1 / LAMBDA), lambda_=LAMBDA)
+else:
+    cma_es = cma.Strategy(centroid=np.random.uniform(-1, 1, n_weights), sigma=math.sqrt(1 / LAMBDA), lambda_=LAMBDA)
 
 creator.create("FitnessMax", base.Fitness, weights=(1.0,))
 creator.create('Individual', np.ndarray, fitness=creator.FitnessMax, player_life=100, enemy_life=100)

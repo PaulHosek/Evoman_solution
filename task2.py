@@ -70,14 +70,19 @@ def evaluate_pop(pop):
     return pop
 
 # Needed for HOF
+# equality test: equivalent to var1 == var2
 def eq_(var1, var2):
     return operator.eq(var1, var2).all()
 
 # ----------------------------- Initialise DEAP ------------------------------ #
 
 n_weights = (env.get_num_sensors() + 1) * n_hidden_neurons + (n_hidden_neurons + 1) * 5
+
+# all return best parameters for their algorithm; centroid= location of start of evo;
+# sigma= initial st.dev of pop; lambda_ = n children produced;
 if strategy == 'cma-pl':
     # TO-DO https://deap.readthedocs.io/en/master/api/algo.html#deap.cma.StrategyOnePlusLambda
+
     cma_es = cma.Strategy(centroid=np.random.uniform(-1, 1, n_weights), sigma=math.sqrt(1/LAMBDA), lambda_=LAMBDA)
 elif strategy == 'cma-mo':
     # TO-DO https://deap.readthedocs.io/en/master/api/algo.html#deap.cma.StrategyMultiObjective
@@ -111,7 +116,10 @@ def main():
     for run in range(1, NRUN + 1):
         print(f"{strategy} strategy -- Start of evolution enemies {enemies} run {run}")
 
+        # initialise hall of fame
         hof = tools.ParetoFront(eq_)
+        # generate new population + update its value with methods in toolbox
+        # logbook = statistics of the evolution
         pop, logbook = algorithms.eaGenerateUpdate(toolbox, ngen=NGEN, stats=stats, halloffame=hof)
 
         best_individuals.append(hof[0])

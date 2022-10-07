@@ -6,7 +6,7 @@ mu = [150]
 lmbd = [150]
 ngen = [100]
 nrun = '10'
-strategies = ['cma', 'cma-pl', 'cma-mo']
+strategies = ['cma', 'cma-opl', 'cma-mo']
 
 cnt = 0
 for strategy in strategies:

@@ -80,6 +80,7 @@ if strategy == 'cma-mo':
     creator.create('Individual', np.ndarray, fitness=creator.FitnessMulti, player_life=100, enemy_life=100)
 else:
     creator.create("FitnessMax", base.Fitness, weights=(1.0,))
+if not hasattr(creator, 'Individual'):
     creator.create('Individual', np.ndarray, fitness=creator.FitnessMax, player_life=100, enemy_life=100)
 
 toolbox = base.Toolbox()
@@ -108,8 +109,7 @@ stats = tools.Statistics(lambda ind: ind.fitness.values)
 stats.register("mean", np.mean)
 stats.register("max", np.max)
 
-# ---------------------------------- Ma
-# in ------------------------------------ #
+# ---------------------------------- Main ------------------------------------ #
 def main():
     best_individuals = []
     statistics = []
@@ -142,6 +142,9 @@ def main():
                 logbook.record(gen=gen, nevals=len(population), **record)
         else:
             pop, logbook = algorithms.eaGenerateUpdate(toolbox, ngen=NGEN, stats=stats, halloffame=hof)
+        # generate new population + update its value with methods in toolbox
+        # logbook = statistics of the evolution
+        pop, logbook = algorithms.eaGenerateUpdate(toolbox, ngen=NGEN, stats=stats, halloffame=hof)
 
         best_individuals.append(hof[0])
         statistics.append(pd.DataFrame(logbook))

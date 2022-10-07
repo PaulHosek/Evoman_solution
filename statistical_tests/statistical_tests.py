@@ -37,12 +37,14 @@ for enemy in range(8):
     p_values[enemy] = round(ttest_ind(blend_igs[:, enemy], sbx_igs[:, enemy])[1], 4)
 
 print("P-values of independent samples t-tests for each enemy.")
-print(p_values, "\n")
+print(p_values[[2,3,6]], "\n")
+relevant_enemies = [2,3,6]
+
 
 # overall pairwise comparison for both alg means
 # average individual gain per enemy
-blend_means = np.mean(blend_igs, axis=0)
-sbx_means = np.mean(sbx_igs, axis=0)
+blend_means = np.mean(blend_igs[:, relevant_enemies], axis=0)
+sbx_means = np.mean(sbx_igs[:, relevant_enemies], axis=0)
 
 res_paried = wilcoxon(blend_means, sbx_means)
 print("Non-parametric paired samples t-test results. Significant if at alpha = 0.05")

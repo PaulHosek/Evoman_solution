@@ -61,12 +61,13 @@ def cust_evaluate(indiv):
     return (fitness,)
 
 # evaluation of an Individual weights when playing against enemies
-# we need all fitness values to send them for the MO strategy
+# we need all fitness values to send for the MO strategy
 def cust_evaluate_mo(indiv):
     mo_fitness = []
     for idx, enemy in enumerate(enemies):
         fit, _, _, _ = env.run_single(enemy, pcont=np.array(indiv), econt="None")
         mo_fitness.append(fit)
+    # we return a tuple of size len(enemies) with the fitness values after each game
     return tuple(mo_fitness)
 
 # Needed for HOF
@@ -88,6 +89,8 @@ toolbox = base.Toolbox()
 if strategy == 'cma-mo':
     # create the fitness attribute of an Individual as a tuple of size len(enemies)
     # we will not have one fitness value as before to maximize, but len(enemies) fitness values
+    # these are our objectives - the fitness values for playing against each enemy from the enemies list
+    # i.e.: for 3 enemies, weights(or fitness) will be a tuple(1.0,1.0,1.0)
     creator.create("FitnessMulti", base.Fitness, weights=(1.0,) * len(enemies))
     creator.create("Individual", np.ndarray, fitness=creator.FitnessMulti, player_life=100, enemy_life=100)
     toolbox.register("evaluate", cust_evaluate_mo)

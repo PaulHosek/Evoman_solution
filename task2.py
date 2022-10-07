@@ -37,7 +37,7 @@ LAMBDA = int(environ.get("lambda", 20))
 NGEN = int(environ.get("ngen", 500))
 multiple_mode = 'yes' if len(enemies) > 1 else 'no'
 n_hidden_neurons = 10
-strategy = environ.get("strategy", 'cma-mo')
+strategy = environ.get("strategy", 'cma-opl')
 
 # Initialise the game environment for the chosen settings
 env = Environment(experiment_name=experiment_name,
@@ -58,7 +58,7 @@ def simulation(x):
 # evaluation of game
 def cust_evaluate(x):
     fitness, player_life, enemy_life, game_time = simulation(x)
-    return [(fitness,)]
+    return (fitness,)
 
 # Needed for HOF
 def eq_(var1, var2):
@@ -68,20 +68,13 @@ def eq_(var1, var2):
 
 n_weights = (env.get_num_sensors() + 1) * n_hidden_neurons + (n_hidden_neurons + 1) * 5
 
-if hasattr(creator, "FitnessMulti"):
-    del creator.FitnessMulti
 if hasattr(creator, "FitnessMax"):
     del creator.FitnessMax
 if hasattr(creator, "Individual"):
     del creator.Individual
 
-if strategy == 'cma-mo':
-    creator.create("FitnessMulti", base.Fitness, weights=(1.0,) * 1)
-    creator.create('Individual', np.ndarray, fitness=creator.FitnessMulti, player_life=100, enemy_life=100)
-else:
-    creator.create("FitnessMax", base.Fitness, weights=(1.0,))
-if not hasattr(creator, 'Individual'):
-    creator.create('Individual', np.ndarray, fitness=creator.FitnessMax, player_life=100, enemy_life=100)
+creator.create("FitnessMax", base.Fitness, weights=(1.0,))
+creator.create('Individual', np.ndarray, fitness=creator.FitnessMax, player_life=100, enemy_life=100)
 
 toolbox = base.Toolbox()
 toolbox.register("evaluate", cust_evaluate)
@@ -90,19 +83,12 @@ toolbox.register("evaluate", cust_evaluate)
 if strategy == 'cma-opl':
     parent = creator.Individual(np.random.uniform(-1, 1, n_weights))
     parent.fitness.values = toolbox.evaluate(parent)
-    cma_es = cma.StrategyOnePlusLambda(parent, sigma=math.sqrt(1/LAMBDA), lambda_=LAMBDA)
-elif strategy == 'cma-mo':
-    population = [creator.Individual(x) for x in (np.random.uniform(-1, 1, (MU, n_weights)))]
-    fitnesses = toolbox.map(toolbox.evaluate, population)
-    for ind, (fit,) in zip(population, fitnesses):
-        ind.fitness.values = fit
-        #ind.scoring_data = scoring_data
-    cma_es = cma.StrategyMultiObjective(population, sigma=math.sqrt(1/LAMBDA), mu=MU, lambda_=LAMBDA)
+    cma_strategy = cma.StrategyOnePlusLambda(parent, sigma=math.sqrt(1 / LAMBDA), lambda_=LAMBDA)
 else:
-    cma_es = cma.Strategy(centroid=np.random.uniform(-1, 1, n_weights), sigma=math.sqrt(1 / LAMBDA), lambda_=LAMBDA)
+    cma_strategy = cma.Strategy(centroid=np.random.uniform(-1, 1, n_weights), sigma=math.sqrt(1 / LAMBDA), lambda_=LAMBDA)
 
-toolbox.register("generate", cma_es.generate, creator.Individual)
-toolbox.register("update", cma_es.update)
+toolbox.register("generate", cma_strategy.generate, creator.Individual)
+toolbox.register("update", cma_strategy.update)
 
 # Register statistics functions
 stats = tools.Statistics(lambda ind: ind.fitness.values)
@@ -121,27 +107,6 @@ def main():
         print(f"{strategy} strategy -- Start of evolution enemies {enemies} run {run}")
 
         hof = tools.ParetoFront(eq_)
-        if strategy == 'cma-mo':
-            for gen in range(NGEN):
-                # Generate a new population
-                population = toolbox.generate()
-
-                # Evaluate the individuals
-                fitnesses = toolbox.map(toolbox.evaluate, population)
-                for ind, (fit,) in zip(population, fitnesses):
-                    ind.fitness.values = fit
-
-                # Update HallOfFame
-                if hof is not None:
-                    hof.update(population)
-
-                # Update the strategy with the evaluated individuals
-                toolbox.update(population)
-
-                record = stats.compile(population) if stats is not None else {}
-                logbook.record(gen=gen, nevals=len(population), **record)
-        else:
-            pop, logbook = algorithms.eaGenerateUpdate(toolbox, ngen=NGEN, stats=stats, halloffame=hof)
         # generate new population + update its value with methods in toolbox
         # logbook = statistics of the evolution
         pop, logbook = algorithms.eaGenerateUpdate(toolbox, ngen=NGEN, stats=stats, halloffame=hof)

@@ -4,10 +4,11 @@ import matplotlib
 import json
 
 matplotlib.use('TkAgg')
-from task2 import simulation
 import matplotlib.pyplot as plt
 
-
+def simulation(x):
+    results = env.play(pcont=x)
+    return results
 
 def plot_exp_stats(statistics, folder, exp_name, alg, enemy, ngen):
     # Combine stats from all runs

@@ -58,16 +58,7 @@ def simulation(x):
 # evaluation of game
 def cust_evaluate(x):
     fitness, player_life, enemy_life, game_time = simulation(x)
-    return (fitness,)
-
-# Determine individuals that need to be evaluated
-def evaluate_pop(pop):
-    # Evaluate the individuals with an invalid fitness
-    invalid_ind = [indiv for indiv in pop if not indiv.fitness.valid]
-    fitness = toolbox.map(toolbox.evaluate, invalid_ind)
-    for individual, fit in zip(pop, fitness):
-        individual.fitness.values = fit
-    return pop
+    return [(fitness,)]
 
 # Needed for HOF
 def eq_(var1, var2):
@@ -77,22 +68,34 @@ def eq_(var1, var2):
 
 n_weights = (env.get_num_sensors() + 1) * n_hidden_neurons + (n_hidden_neurons + 1) * 5
 
-if not hasattr(creator, 'FitnessMax'):
+if hasattr(creator, "FitnessMulti"):
+    del creator.FitnessMulti
+if hasattr(creator, "FitnessMax"):
+    del creator.FitnessMax
+if hasattr(creator, "Individual"):
+    del creator.Individual
+
+if strategy == 'cma-mo':
+    creator.create("FitnessMulti", base.Fitness, weights=(1.0,) * 1)
+    creator.create('Individual', np.ndarray, fitness=creator.FitnessMulti, player_life=100, enemy_life=100)
+else:
     creator.create("FitnessMax", base.Fitness, weights=(1.0,))
-if not hasattr(creator, 'Individual'):
     creator.create('Individual', np.ndarray, fitness=creator.FitnessMax, player_life=100, enemy_life=100)
 
 toolbox = base.Toolbox()
 toolbox.register("evaluate", cust_evaluate)
 
+# TO-DO: add seed for reproducibility
 if strategy == 'cma-opl':
     parent = creator.Individual(np.random.uniform(-1, 1, n_weights))
     parent.fitness.values = toolbox.evaluate(parent)
     cma_es = cma.StrategyOnePlusLambda(parent, sigma=math.sqrt(1/LAMBDA), lambda_=LAMBDA)
 elif strategy == 'cma-mo':
     population = [creator.Individual(x) for x in (np.random.uniform(-1, 1, (MU, n_weights)))]
-    for ind in population:
-        ind.fitness.values = toolbox.evaluate(ind)
+    fitnesses = toolbox.map(toolbox.evaluate, population)
+    for ind, (fit,) in zip(population, fitnesses):
+        ind.fitness.values = fit
+        #ind.scoring_data = scoring_data
     cma_es = cma.StrategyMultiObjective(population, sigma=math.sqrt(1/LAMBDA), mu=MU, lambda_=LAMBDA)
 else:
     cma_es = cma.Strategy(centroid=np.random.uniform(-1, 1, n_weights), sigma=math.sqrt(1 / LAMBDA), lambda_=LAMBDA)
@@ -125,7 +128,7 @@ def main():
 
                 # Evaluate the individuals
                 fitnesses = toolbox.map(toolbox.evaluate, population)
-                for ind, fit in zip(population, fitnesses):
+                for ind, (fit,) in zip(population, fitnesses):
                     ind.fitness.values = fit
 
                 # Update HallOfFame

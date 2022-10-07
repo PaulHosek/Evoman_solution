@@ -82,8 +82,8 @@ n_weights = (env.get_num_sensors() + 1) * n_hidden_neurons + (n_hidden_neurons +
 # sigma= initial st.dev of pop; lambda_ = n children produced;
 if strategy == 'cma-pl':
     # TO-DO https://deap.readthedocs.io/en/master/api/algo.html#deap.cma.StrategyOnePlusLambda
-
     cma_es = cma.Strategy(centroid=np.random.uniform(-1, 1, n_weights), sigma=math.sqrt(1/LAMBDA), lambda_=LAMBDA)
+# CMA + multi-objective selection method
 elif strategy == 'cma-mo':
     # TO-DO https://deap.readthedocs.io/en/master/api/algo.html#deap.cma.StrategyMultiObjective
     cma_es = cma.Strategy(centroid=np.random.uniform(-1, 1, n_weights), sigma=math.sqrt(1 / LAMBDA), lambda_=LAMBDA)

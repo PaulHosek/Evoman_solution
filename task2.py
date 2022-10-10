@@ -30,7 +30,7 @@ os.environ['SDL_AUDIODRIVER'] = 'dummy'
 os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = 'hide'
 
 # Read environment variables
-NRUN = int(environ.get("NRUN", 1))
+NRUN = int(environ.get("NRUN", 10))
 enemies = list(map(int, environ.get("enemy", '6-7-8').split('-')))
 MU = int(environ.get("mu", 10))
 LAMBDA = int(environ.get("lambda", 20))
@@ -149,7 +149,7 @@ def main():
         exp_name = f"{MU}_{LAMBDA}_{NGEN}"
         utils.plot_exp_stats(statistics, experiment_name + "/plots/", exp_name, strategy, str(enemies), NGEN)
         utils.write_best(best_individuals, experiment_name + "/best_results/best_weights/", exp_name, strategy, str(enemies))
-        utils.eval_best(best_individuals, experiment_name + "/best_results/best_individuals/", exp_name, strategy, str(enemies))
+        utils.eval_best(env, best_individuals, experiment_name + "/best_results/best_individuals/", exp_name, strategy, str(enemies))
     pool.close()
 
 if __name__ == "__main__":

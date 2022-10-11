@@ -22,7 +22,7 @@ from deap import tools, creator, base, algorithms
 from os import environ
 from deap import cma
 
-sys.path.insert(0, 'evoman_fast') # TODO - what does evoman_fast do?
+sys.path.insert(0, 'evoman_fast') # TODO - what does evoman_fast do? How?
 
 from environment import Environment
 from demo_controller import player_controller
@@ -30,27 +30,28 @@ from demo_controller import player_controller
 # ---------------------------------- Setup ---------------------------------- #
 
 # Read environment variables
-STRATEGY = environ.get("STRATEGY", "cma-opl") # ["cma-mo", "cma-opl", "cma"] 
-ENEMIES = list(map(int, environ.get("enemy", '6-7').split('-'))) # ["1-2-3-4-5-6-7-8"]
-NGEN = int(environ.get("NGEN", 10))
-NTRIALS = int(environ.get("NTRIALS", 12))
+STRATEGY = environ.get("STRATEGY", "cma") # ["cma-mo", "cma-opl", "cma"] 
+ENEMIES = list(map(int, environ.get("enemy", '1-2-3-4-7').split('-'))) # ["1-2-3-4-5-6-7-8"]
+NGEN = int(environ.get("NGEN", 50))
+NTRIALS = int(environ.get("NTRIALS", 100))
+WINDOW_LEN = 5
 
 MULTIPLE_MODE = 'yes' if len(ENEMIES) > 1 else 'no'
 N_HIDDEN_NEURONS = 10
 
 # Hyperparameter search space
 # SIGMA = Initial step size (float)
-SIGMA_LOWER = 1e-2
-SIGMA_UPPER = 5
+SIGMA_LOWER = 1e-3
+SIGMA_UPPER = 2
 SIGMA_LOG = True
 
 # - MU = The number of parents to keep from the lambda children (integer)
 MU_LOWER = 5
-MU_UPPER = 20
+MU_UPPER = 30
 
 # ['cma-opl' ONLY] LAMBDA = Number of children to produce at each generation (integer)
 LAMBDA_LOWER = 1
-LAMBDA_UPPER = 10
+LAMBDA_UPPER = 30
 
 # Store settings in dict for recording purposes
 exp_settings = {
@@ -58,6 +59,7 @@ exp_settings = {
     "Enemies": ENEMIES,
     "Generations": NGEN,
     "Trials": NTRIALS,
+    "Window Length": WINDOW_LEN,
     "Sigma_lower": SIGMA_LOWER,
     "Sigma_upper": SIGMA_UPPER,
     "Sigma_log": SIGMA_LOG,
@@ -160,7 +162,7 @@ def get_strategy(strategy, trial):
         # Tunable parameters
         sigma = trial.suggest_float('SIGMA', SIGMA_LOWER, SIGMA_UPPER, log=SIGMA_LOG)
         mu = trial.suggest_int('MU', MU_LOWER, MU_UPPER)
-        lam = trial.suggest_int('LAMBDA', 1 * mu, 7 * mu)
+        lam = trial.suggest_int('LAMBDA', 1, 5 * mu)
 
         # Generate population of MU individuals from an Uniform distribution -1, 1 with n_weights
         population = [creator.Individual(x) for x in (np.random.uniform(-1, 1, (mu, n_weights)))]
@@ -188,7 +190,7 @@ def get_strategy(strategy, trial):
         # Tunable parameters
         sigma = trial.suggest_float('SIGMA', SIGMA_LOWER, SIGMA_UPPER, log=SIGMA_LOG)
         mu = trial.suggest_int('MU', MU_LOWER, MU_UPPER)
-        lam = trial.suggest_int('LAMBDA', 1 * mu, 7 * mu)
+        lam = trial.suggest_int('LAMBDA', 1, 5 * mu)
 
         cma_strategy = cma.Strategy(centroid=np.random.uniform(-1, 1, n_weights), sigma=sigma, mu=mu, lambda_=lam)
         return cma_strategy
@@ -235,14 +237,15 @@ def objective(trial):
         
         # Inserted logic for optuna pruning (early stopping for poor trials)
         generation, mean = logbook.select("gen", "mean")
-        trial.report(mean[-1], generation[-1])
+        smoothed_mean = sum(mean[-WINDOW_LEN:]) / len(mean[-WINDOW_LEN:])
+        trial.report(smoothed_mean, generation[-1])
 
         if trial.should_prune():
             raise optuna.exceptions.TrialPruned()
 
     # ----------------------------------------------------------------------- #
 
-    return mean[-1]
+    return smoothed_mean
 
 # ---------------------------------- Main ----------------------------------- #
 def main():

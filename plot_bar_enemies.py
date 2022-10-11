@@ -36,7 +36,9 @@ weights_2 = np.loadtxt('ea_exp/best_results/Best_individuals_ea_expeaMuPlusLambd
 
 
 # tests saved demo solutions for each enemy
-def assess_per_enemy(weights, n_runs=10):
+def assess_per_enemy(weights, n_runs=10, full_out = False):
+    if full_out:
+        mean_values = np.empty((n_runs, 8, 4))
     fitnesses = np.empty((n_runs ,8))
     gains = np.empty((n_runs ,8))
     for run in range(n_runs):
@@ -46,10 +48,16 @@ def assess_per_enemy(weights, n_runs=10):
             env.update_parameter('enemies', [en])
 
             cur_result[en-1] = env.play(weights)
+        if full_out: mean_values[run,:,:] = cur_result
+
         fitnesses[run, :] = cur_result[:,0]
         gains[run, :] = cur_result[:,1] - cur_result[:,2]
+    if full_out: return fitnesses,gains,np.mean(mean_values, axis=0)
     return fitnesses, gains
 
+
+fitnesses, gains, full_out = assess_per_enemy(weights=weights,n_runs=3, full_out=True)
+print(full_out)
 
 # Plotting
 def plot_measure(data:list,measure_name,file_name, labels=["EA 1", "EA 2"], show_save="show"):

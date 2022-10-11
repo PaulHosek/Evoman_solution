@@ -10,7 +10,7 @@ from optuna.trial import TrialState
 matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 
-def simulation(x):
+def simulation(env, x):
     results = env.play(pcont=x)
     return results
 
@@ -68,7 +68,7 @@ def write_best(individuals, folder, exp_name, alg, enemy):
 
 
 # Test the best individual per run and save resulting statistics
-def eval_best(individuals, folder, exp_name, alg, enemy):
+def eval_best(env, individuals, folder, exp_name, alg, enemy):
     print("-- Evaluating Best Individuals --")
     # Iterate over the best individuals from each run
     avg_results = []
@@ -76,7 +76,7 @@ def eval_best(individuals, folder, exp_name, alg, enemy):
         # Test each individual 5 times
         tests = []
         for _ in range(5):
-            tests.append(simulation(ind))
+            tests.append(simulation(env, ind))
 
         # Take the average and append to results list
         avg_results.append(np.mean(np.array(tests), axis=0))

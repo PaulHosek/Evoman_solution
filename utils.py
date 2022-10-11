@@ -1,3 +1,5 @@
+import os
+import pickle
 import pandas as pd
 import numpy as np
 import matplotlib
@@ -96,39 +98,57 @@ def eval_best(individuals, folder, exp_name, alg, enemy):
     fig.savefig(f"{folder}exp-{exp_name}_alg-{alg}_enemy-{enemy}.pdf")
     plt.close()
 
+# --------------------------------- Tuning ---------------------------------- #
+
+# Save study as a backup
+def save_study(study, folder):
+    with open(f"{folder}/study.pkl", "wb") as f:
+        pickle.dump(study, f)
+
+# Load saved study
+def load_study(folder):
+    with open(f"{folder}/study.pkl", "rb") as f:
+        study = pickle.load(f)
+        return study
+
 # Print tuning results to the console
-def print_tuning_results(study):
+def print_tuning_summary(study, settings):
     pruned_trials = study.get_trials(deepcopy=False, states=[TrialState.PRUNED])
     complete_trials = study.get_trials(deepcopy=False, states=[TrialState.COMPLETE])
     best_trial = study.best_trial
 
+    print()
+    print("------- EXP SETTINGS -------")
+    print()
+    for key, value in settings.items():
+        print(f"{key}: {value}")
     print()
     print('------- TUNING RESULTS -------')
     print()
     print("Study statistics: ")
-    print("  Number of finished trials: ", len(study.trials))
-    print("  Number of pruned trials: ", len(pruned_trials))
-    print("  Number of complete trials: ", len(complete_trials))
+    print(f"  Number of finished trials: {len(study.trials)}")
+    print(f"  Number of pruned trials: {len(pruned_trials)}")
+    print(f"  Number of complete trials: {len(complete_trials)}")
     print()
     print("Best trial:")
-    print("  Value: ", best_trial.value)
+    print(f"  Value: {best_trial.value}")
     print("  Params: ")
     for key, value in best_trial.params.items():
         print(f"    {key}: {value}")
     print()
+    print('------------------------------')
+    print()
 
 
 # Save tuning results to a text file
-def save_tuning_results(study, filename, strategy, enemies, ngen):
+def save_tuning_summary(study, folder, settings):
     pruned_trials = study.get_trials(deepcopy=False, states=[TrialState.PRUNED])
     complete_trials = study.get_trials(deepcopy=False, states=[TrialState.COMPLETE])
     best_trial = study.best_trial
 
-    lines = [
-        "------- EXP SETTINGS -------\n",
-        f"Strategy: {strategy}",
-        f"Enemies: {enemies}",
-        f"Generations: {ngen}\n",
+    settings_str = ["------- EXP SETTINGS -------\n"] + [f"{key}: {value}" for key, value in settings.items()] + ["\n"]
+
+    results_str = [
         "------- TUNING RESULTS -------\n",
         "Study statistics: ",
         f"  Number of finished trials: {len(study.trials)}",
@@ -139,7 +159,42 @@ def save_tuning_results(study, filename, strategy, enemies, ngen):
         "  Params: "
     ]
 
-    lines = lines + [f"    {key}: {value}" for key, value in best_trial.params.items()]
+    best_params_str = [f"    {key}: {value}" for key, value in best_trial.params.items()]
+    results_str = results_str + best_params_str
 
-    with open(filename, "w") as f:
+    lines = settings_str + results_str
+
+    with open(f"{folder}/summary.txt", "w") as f:
         f.write("\n".join(lines))
+
+# Plot and save tuning visualization plots
+def save_tuning_plots(study, folder):
+    if not optuna.visualization.is_available():
+        print("Plotly visualization is unavailable. Plotly version >4.0.0 required.")
+        return
+
+    print("Saving plots...")
+
+    fig = optuna.visualization.plot_contour(study)
+    fig.write_image(f"{folder}/contour.pdf")
+
+    fig = optuna.visualization.plot_edf(study)
+    fig.write_image(f"{folder}/edf.pdf")
+
+    fig = optuna.visualization.plot_intermediate_values(study)
+    fig.write_image(f"{folder}/intermediate_values.pdf")
+
+    fig = optuna.visualization.plot_optimization_history(study)
+    fig.write_image(f"{folder}/optimization_history.pdf")
+
+    fig = optuna.visualization.plot_parallel_coordinate(study)
+    fig.write_image(f"{folder}/parallel_coordinate.pdf")
+
+    fig = optuna.visualization.plot_param_importances(study)
+    fig.write_image(f"{folder}/param_importances.pdf")
+
+    fig = optuna.visualization.plot_slice(study)
+    fig.write_image(f"{folder}/slice.pdf")
+
+    print("Done!")
+    

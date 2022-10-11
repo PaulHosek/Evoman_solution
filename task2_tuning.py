@@ -1,10 +1,14 @@
-# Hyperparameters to Tune
-
-# - SIGMA = Initial step size (float)
-# - MU = The number of parents to keep from the lambda children (integer)
-# - LAMBDA = Number of children to produce at each generation (integer)
-
+# ------------------------------ Dependencies ------------------------------- #
+# 
+# Some extra python modules are required for optuna's visualization tools.
+# Run the following commands to install them:
+# 
+# > pip install plotly==5.10.0
+# > pip install -U scikit-learn
+# > pip install -U kaleido
+# 
 # --------------------- Import Frameworks and Libraries ---------------------- #
+
 import math
 import operator
 import sys, os
@@ -25,33 +29,69 @@ from demo_controller import player_controller
 
 # ---------------------------------- Setup ---------------------------------- #
 
-# Create required folders
-experiment_name = 'task2'
-if not os.path.exists(experiment_name):
-    os.makedirs(experiment_name)
+# Read environment variables
+STRATEGY = environ.get("STRATEGY", "cma-opl") # ["cma-mo", "cma-opl", "cma"] 
+ENEMIES = list(map(int, environ.get("enemy", '6-7').split('-'))) # ["1-2-3-4-5-6-7-8"]
+NGEN = int(environ.get("NGEN", 10))
+NTRIALS = int(environ.get("NTRIALS", 12))
 
-if not os.path.exists(experiment_name + "/tuning_results"):
-    os.makedirs(experiment_name + "/tuning_results")
+MULTIPLE_MODE = 'yes' if len(ENEMIES) > 1 else 'no'
+N_HIDDEN_NEURONS = 10
+
+# Hyperparameter search space
+# SIGMA = Initial step size (float)
+SIGMA_LOWER = 1e-2
+SIGMA_UPPER = 5
+SIGMA_LOG = True
+
+# - MU = The number of parents to keep from the lambda children (integer)
+MU_LOWER = 5
+MU_UPPER = 20
+
+# ['cma-opl' ONLY] LAMBDA = Number of children to produce at each generation (integer)
+LAMBDA_LOWER = 1
+LAMBDA_UPPER = 10
+
+# Store settings in dict for recording purposes
+exp_settings = {
+    "Strategy": STRATEGY,
+    "Enemies": ENEMIES,
+    "Generations": NGEN,
+    "Trials": NTRIALS,
+    "Sigma_lower": SIGMA_LOWER,
+    "Sigma_upper": SIGMA_UPPER,
+    "Sigma_log": SIGMA_LOG,
+    "Mu_lower": MU_LOWER,
+    "Mu_upper": MU_UPPER,
+    "Lambda_lower": LAMBDA_LOWER,
+    "Lambda_upper": LAMBDA_UPPER
+}
+
+# Create required folders
+root_folder = 'task2'
+exp_name = f"strat-{STRATEGY}_enemies-{ENEMIES}_gen-{NGEN}_trials-{NTRIALS}"
+tuning_subfolder = f"{root_folder}/tuning_results/{exp_name}"
+
+if not os.path.exists(root_folder):
+    os.makedirs(root_folder)
+
+if not os.path.exists(f"{root_folder}/tuning_results"):
+    os.makedirs(f"{root_folder}/tuning_results")
+
+if not os.path.exists(tuning_subfolder):
+    os.makedirs(tuning_subfolder)
 
 # Prevent graphics and audio rendering to speed up simulations
 os.environ['SDL_VIDEODRIVER'] = 'dummy'
 os.environ['SDL_AUDIODRIVER'] = 'dummy'
 os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = 'hide'
 
-# Read environment variables
-NTRIALS = int(environ.get("NTRIALS", 10))
-enemies = list(map(int, environ.get("enemy", '6-7-8').split('-')))
-NGEN = int(environ.get("ngen", 5))
-multiple_mode = 'yes' if len(enemies) > 1 else 'no'
-n_hidden_neurons = 10
-strategy = environ.get("strategy", "cma-mo") # ["cma-mo", "cma-opl", "cma"] 
-
 # Initialise the game environment for the chosen settings
-env = Environment(experiment_name=experiment_name,
-                  enemies=enemies,
-                  multiplemode=multiple_mode,
+env = Environment(experiment_name=root_folder,
+                  enemies=ENEMIES,
+                  multiplemode=MULTIPLE_MODE,
                   playermode="ai",
-                  player_controller=player_controller(n_hidden_neurons),
+                  player_controller=player_controller(N_HIDDEN_NEURONS),
                   enemymode="static",
                   level=2,
                   speed="fastest")
@@ -71,10 +111,10 @@ def cust_evaluate(indiv):
 # we need all fitness values to send for the MO strategy
 def cust_evaluate_mo(indiv):
     mo_fitness = []
-    for idx, enemy in enumerate(enemies):
+    for idx, enemy in enumerate(ENEMIES):
         fit, _, _, _ = env.run_single(enemy, pcont=np.array(indiv), econt="None")
         mo_fitness.append(fit)
-    # we return a tuple of size len(enemies) with the fitness values after each game
+    # we return a tuple of size len(ENEMIES) with the fitness values after each game
     return tuple(mo_fitness)
 
 # Needed for HOF
@@ -83,8 +123,7 @@ def eq_(var1, var2):
 
 # ----------------------------- Initialise DEAP ------------------------------ #
 
-n_weights = (env.get_num_sensors() + 1) * n_hidden_neurons + (n_hidden_neurons + 1) * 5
-# print("Num Weights:", n_weights)
+n_weights = (env.get_num_sensors() + 1) * N_HIDDEN_NEURONS + (N_HIDDEN_NEURONS + 1) * 5
 
 if hasattr(creator, "FitnessMax"):
     del creator.FitnessMax
@@ -94,12 +133,12 @@ if hasattr(creator, "Individual"):
     del creator.Individual
 
 toolbox = base.Toolbox()
-if strategy == 'cma-mo':
-    # create the fitness attribute of an Individual as a tuple of size len(enemies)
-    # we will not have one fitness value as before to maximize, but len(enemies) fitness values
+if STRATEGY == 'cma-mo':
+    # create the fitness attribute of an Individual as a tuple of size len(ENEMIES)
+    # we will not have one fitness value as before to maximize, but len(ENEMIES) fitness values
     # these are our objectives - the fitness values for playing against each enemy from the enemies list
     # i.e.: for 3 enemies, weights(or fitness) will be a tuple(1.0,1.0,1.0)
-    creator.create("FitnessMulti", base.Fitness, weights=(1.0,) * len(enemies))
+    creator.create("FitnessMulti", base.Fitness, weights=(1.0,) * len(ENEMIES))
     creator.create("Individual", np.ndarray, fitness=creator.FitnessMulti, player_life=100, enemy_life=100)
     toolbox.register("evaluate", cust_evaluate_mo)
 else:
@@ -107,40 +146,21 @@ else:
     creator.create('Individual', np.ndarray, fitness=creator.FitnessMax, player_life=100, enemy_life=100)
     toolbox.register("evaluate", cust_evaluate)
 
-# # TO-DO: add seed for reproducibility
-# if strategy == 'cma-mo':
-#     # Generate population of MU individuals from an Uniform distribution -1, 1 with n_weights
-#     population = [creator.Individual(x) for x in (np.random.uniform(-1, 1, (MU, n_weights)))]
-#     # We evaluate the initial population and update its fitness
-#     fitnesses = toolbox.map(toolbox.evaluate, population)
-#     for ind, fit in zip(population, fitnesses):
-#         ind.fitness.values = fit
-#     # We initialize the MO strategy
-#     cma_strategy = cma.StrategyMultiObjective(population, sigma=math.sqrt(1 / LAMBDA), mu=MU, lambda_=LAMBDA)
-# elif strategy == 'cma-opl':
-#     parent = creator.Individual(np.random.uniform(-1, 1, n_weights))
-#     parent.fitness.values = toolbox.evaluate(parent)
-#     cma_strategy = cma.StrategyOnePlusLambda(parent, sigma=math.sqrt(1 / LAMBDA), lambda_=LAMBDA)
-# else:
-#     cma_strategy = cma.Strategy(centroid=np.random.uniform(-1, 1, n_weights), sigma=math.sqrt(1 / LAMBDA), lambda_=LAMBDA)
-
-# toolbox.register("generate", cma_strategy.generate, creator.Individual)
-# toolbox.register("update", cma_strategy.update)
-
 # Register statistics functions
 stats = tools.Statistics(lambda ind: ind.fitness.values)
 stats.register("mean", np.mean)
 stats.register("max", np.max)
 
-# ---------------------------- Tuning Objective ----------------------------- #
+# -------------------------- Functions for optuna --------------------------- #
 
+# Returns an initialized DEAP object for the chosen strategy
 def get_strategy(strategy, trial):
     # TO-DO: add seed for reproducibility
     if strategy == 'cma-mo':
         # Tunable parameters
-        sigma = trial.suggest_float('SIGMA', 1e-3, 0.5e1, log=True)
-        mu = trial.suggest_int('MU', 5, 30)
-        lam = trial.suggest_int('LAMBDA', 2 * mu, 7 * mu)
+        sigma = trial.suggest_float('SIGMA', SIGMA_LOWER, SIGMA_UPPER, log=SIGMA_LOG)
+        mu = trial.suggest_int('MU', MU_LOWER, MU_UPPER)
+        lam = trial.suggest_int('LAMBDA', 1 * mu, 7 * mu)
 
         # Generate population of MU individuals from an Uniform distribution -1, 1 with n_weights
         population = [creator.Individual(x) for x in (np.random.uniform(-1, 1, (mu, n_weights)))]
@@ -152,36 +172,36 @@ def get_strategy(strategy, trial):
         # We initialize the MO strategy
         cma_strategy = cma.StrategyMultiObjective(population, sigma=sigma, mu=mu, lambda_=lam)
         return cma_strategy
+
     elif strategy == 'cma-opl':
         # Tunable parameters
-        sigma = trial.suggest_float('SIGMA', 1e-3, 0.5e1, log=True)
-        lam = trial.suggest_int('LAMBDA', 1, 5)
+        sigma = trial.suggest_float('SIGMA', SIGMA_LOWER, SIGMA_UPPER, log=SIGMA_LOG)
+        lam = trial.suggest_int('LAMBDA', LAMBDA_LOWER, LAMBDA_UPPER)
         
         parent = creator.Individual(np.random.uniform(-1, 1, n_weights))
         parent.fitness.values = toolbox.evaluate(parent)
 
         cma_strategy = cma.StrategyOnePlusLambda(parent, sigma=sigma, lambda_=lam)
         return cma_strategy
+
     else:
         # Tunable parameters
-        sigma = trial.suggest_float('SIGMA', 1e-3, 0.5e1, log=True)
-        mu = trial.suggest_int('MU', 5, 30)
-        lam = trial.suggest_int('LAMBDA', 2 * mu, 7 * mu)
+        sigma = trial.suggest_float('SIGMA', SIGMA_LOWER, SIGMA_UPPER, log=SIGMA_LOG)
+        mu = trial.suggest_int('MU', MU_LOWER, MU_UPPER)
+        lam = trial.suggest_int('LAMBDA', 1 * mu, 7 * mu)
 
         cma_strategy = cma.Strategy(centroid=np.random.uniform(-1, 1, n_weights), sigma=sigma, mu=mu, lambda_=lam)
         return cma_strategy
 
-
+# The function for optuna to maximise (mean fitness after NGEN generations)
+# Implements pruning/early stopping for poor trials
 def objective(trial):
     # Define strategy
-    cma_strategy = get_strategy(strategy, trial)
+    cma_strategy = get_strategy(STRATEGY, trial)
     toolbox.register("generate", cma_strategy.generate, creator.Individual)
     toolbox.register("update", cma_strategy.update)
 
     hof = tools.ParetoFront(eq_)
-
-    # generate new population + update its value with methods in toolbox
-    # logbook = statistics of the evolution
 
     # Expanded version of algorithms.eaGenerateUpdate(toolbox, ngen=NGEN, stats=stats, halloffame=hof)
     # ----------------------------------------------------------------------- #
@@ -224,14 +244,18 @@ def objective(trial):
 
     return mean[-1]
 
-
 # ---------------------------------- Main ----------------------------------- #
 def main():
-    exp_name = f"strat-{strategy}_enemies-{enemies}_gen-{NGEN}_trials-{NTRIALS}"
+    # Tuning
     study = optuna.create_study(study_name=exp_name, direction="maximize")
     study.optimize(objective, n_trials=NTRIALS)
-    utils.print_tuning_results(study)
-    utils.save_tuning_results(study, f"{experiment_name}/tuning_results/{exp_name}.txt", strategy, enemies, NGEN)
+
+    # Saving and displaying results
+    utils.save_study(study, tuning_subfolder)
+    utils.print_tuning_summary(study, exp_settings)
+    utils.save_tuning_summary(study, tuning_subfolder, exp_settings)
+    utils.save_tuning_plots(study, tuning_subfolder)
+    
 
 if __name__ == "__main__":
     pool = mp.Pool(processes=mp.cpu_count())

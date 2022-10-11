@@ -50,47 +50,6 @@ def assess_per_enemy(weights, n_runs=10):
         gains[run, :] = cur_result[:,1] - cur_result[:,2]
     return fitnesses, gains
 
-# Plotting
-def plot_measure(data,measure_name,file_name, show_save="show", label = "EA 1"):
-    """
-    Plot fitness or gain from function "assess per enemy"
-    @param data:
-    @param measure_name:
-    @return:
-    """
-
-    fig = plt.figure(figsize=(12,6))
-    ax = fig.add_subplot(111)
-    bp = ax.boxplot(data, patch_artist=True)
-
-    # visual adjustments to box plots
-    for box in bp["boxes"]:
-        box.set( color="black", linewidth=2, alpha =0.6)
-        box.set( facecolor = 'blue')
-    for i in bp['whiskers']:
-        i.set(color='black', linewidth=2, alpha =0.6)
-    for median in bp['medians']:
-        median.set(color='black', linewidth=2, alpha =0.6)
-
-    ax.set_xticklabels(["Enemy 1","Enemy 2","Enemy 3","Enemy 4","Enemy 5","Enemy 6","Enemy 7","Enemy 8",])
-    ax.set_ylabel(measure_name)
-    # plot median
-    ax.plot(np.arange(1,9,1),np.median(data, axis=0), color="grey", alpha = 0.5,label =label)
-
-    if show_save == "save":
-        plt.legend(loc="best")
-        plt.savefig(file_name, dpi=300)
-    elif show_save == "show":
-        plt.legend(loc="best")
-        plt.show()
-    return
-
-
-fitnesses, gains = assess_per_enemy(weights=weights,n_runs=10)
-fitnesses_2, gains_2 = assess_per_enemy(weights=weights_2,n_runs=10)
-
-
-
 
 # Plotting
 def plot_measure(data:list,measure_name,file_name, labels=["EA 1", "EA 2"], show_save="show"):
@@ -132,7 +91,8 @@ def plot_measure(data:list,measure_name,file_name, labels=["EA 1", "EA 2"], show
     return
 
 
-
+fitnesses, gains = assess_per_enemy(weights=weights,n_runs=10)
+fitnesses_2, gains_2 = assess_per_enemy(weights=weights_2,n_runs=10)
 
 plot_measure([gains,gains_2], "Gain", 'some_figure_name',show_save="show",labels=["MO example","CMA example"])
 

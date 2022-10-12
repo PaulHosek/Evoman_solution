@@ -74,6 +74,20 @@ def cust_evaluate_mo(indiv):
 def eq_(var1, var2):
     return operator.eq(var1, var2).all()
 
+def mean_mo(fit):
+    enemy_mean = np.mean(fit, axis=1)
+    enemy_std = np.std(fit, axis=1)
+    cons_fit = np.subtract(enemy_mean, enemy_std)
+    mean_cons_fit = np.mean(cons_fit)
+    return mean_cons_fit
+
+def max_mo(fit):
+    enemy_mean = np.mean(fit, axis=1)
+    enemy_std = np.std(fit, axis=1)
+    cons_fit = np.subtract(enemy_mean, enemy_std)
+    max_cons_fit = np.max(cons_fit)
+    return max_cons_fit
+
 # ----------------------------- Initialise DEAP ------------------------------ #
 
 n_weights = (env.get_num_sensors() + 1) * n_hidden_neurons + (n_hidden_neurons + 1) * 5
@@ -121,8 +135,13 @@ toolbox.register("update", cma_strategy.update)
 
 # Register statistics functions
 stats = tools.Statistics(lambda ind: ind.fitness.values)
-stats.register("mean", np.mean)
-stats.register("max", np.max)
+
+if strategy == 'cma-mo':
+    stats.register("mean", mean_mo)
+    stats.register("max", max_mo)
+else:
+    stats.register("mean", np.mean)
+    stats.register("max", np.max)
 
 # ---------------------------------- Main ------------------------------------ #
 def main():

@@ -30,7 +30,7 @@ from demo_controller import player_controller
 # ---------------------------------- Setup ---------------------------------- #
 
 # Read environment variables
-STRATEGY = environ.get("STRATEGY", "cma") # ["cma-mo", "cma-opl", "cma"] 
+STRATEGY = environ.get("STRATEGY", "cma-mo") # ["cma-mo", "cma-opl", "cma"] 
 ENEMIES = list(map(int, environ.get("enemy", '1-2-3-4-7').split('-'))) # ["1-2-3-4-5-6-7-8"]
 NGEN = int(environ.get("NGEN", 50))
 NTRIALS = int(environ.get("NTRIALS", 100))
@@ -123,6 +123,20 @@ def cust_evaluate_mo(indiv):
 def eq_(var1, var2):
     return operator.eq(var1, var2).all()
 
+def mean_mo(fit):
+    enemy_mean = np.mean(fit, axis=1)
+    enemy_std = np.std(fit, axis=1)
+    cons_fit = np.subtract(enemy_mean, enemy_std)
+    mean_cons_fit = np.mean(cons_fit)
+    return mean_cons_fit
+
+def max_mo(fit):
+    enemy_mean = np.mean(fit, axis=1)
+    enemy_std = np.std(fit, axis=1)
+    cons_fit = np.subtract(enemy_mean, enemy_std)
+    max_cons_fit = np.max(cons_fit)
+    return max_cons_fit
+
 # ----------------------------- Initialise DEAP ------------------------------ #
 
 n_weights = (env.get_num_sensors() + 1) * N_HIDDEN_NEURONS + (N_HIDDEN_NEURONS + 1) * 5
@@ -150,8 +164,13 @@ else:
 
 # Register statistics functions
 stats = tools.Statistics(lambda ind: ind.fitness.values)
-stats.register("mean", np.mean)
-stats.register("max", np.max)
+
+if STRATEGY == 'cma-mo':
+    stats.register("mean", mean_mo)
+    stats.register("max", max_mo)
+else:
+    stats.register("mean", np.mean)
+    stats.register("max", np.max)
 
 # -------------------------- Functions for optuna --------------------------- #
 
@@ -190,7 +209,7 @@ def get_strategy(strategy, trial):
         # Tunable parameters
         sigma = trial.suggest_float('SIGMA', SIGMA_LOWER, SIGMA_UPPER, log=SIGMA_LOG)
         mu = trial.suggest_int('MU', MU_LOWER, MU_UPPER)
-        lam = trial.suggest_int('LAMBDA', 1, 5 * mu)
+        lam = trial.suggest_int('LAMBDA', mu, 5 * mu)
 
         cma_strategy = cma.Strategy(centroid=np.random.uniform(-1, 1, n_weights), sigma=sigma, mu=mu, lambda_=lam)
         return cma_strategy

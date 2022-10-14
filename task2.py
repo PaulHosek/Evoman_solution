@@ -17,12 +17,12 @@ from demo_controller import player_controller
 
 # Create experiment folder if needed
 experiment_name = 'task2'
-if not os.path.exists(experiment_name):
-    os.makedirs(experiment_name)
-    os.makedirs(experiment_name + '/best_results')
-    os.makedirs(experiment_name + '/best_results' + '/best_weights')
-    os.makedirs(experiment_name + '/best_results' + '/best_individuals')
-    os.makedirs(experiment_name + '/plots')
+if not os.path.exists(experiment_name + '/exp_results'):
+    os.makedirs(experiment_name + '/exp_results/exp_results')
+    os.makedirs(experiment_name + '/exp_results/best_results')
+    os.makedirs(experiment_name + '/exp_results/best_results' + '/best_weights')
+    os.makedirs(experiment_name + '/exp_results/best_results' + '/best_individuals')
+    os.makedirs(experiment_name + '/exp_results/plots')
 
 # Prevent graphics and audio rendering to speed up simulations
 os.environ['SDL_VIDEODRIVER'] = 'dummy'
@@ -30,11 +30,12 @@ os.environ['SDL_AUDIODRIVER'] = 'dummy'
 os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = 'hide'
 
 # Read environment variables
-NRUN = int(environ.get("NRUN", 10))
-enemies = list(map(int, environ.get("enemy", '6-7-8').split('-')))
+NRUN = int(environ.get("nrun", 1))
+enemies = list(map(int, environ.get("enemy", '1-3-4-6-7').split('-')))
 MU = int(environ.get("mu", 10))
 LAMBDA = int(environ.get("lambda", 20))
-NGEN = int(environ.get("ngen", 500))
+SIGMA = float(environ.get("sigma", 0.19))
+NGEN = int(environ.get("ngen", 20))
 multiple_mode = 'yes' if len(enemies) > 1 else 'no'
 n_hidden_neurons = 10
 strategy = environ.get("strategy", 'cma-mo')
@@ -113,26 +114,6 @@ else:
     creator.create('Individual', np.ndarray, fitness=creator.FitnessMax, player_life=100, enemy_life=100)
     toolbox.register("evaluate", cust_evaluate)
 
-# TO-DO: add seed for reproducibility
-if strategy == 'cma-mo':
-    # Generate population of MU individuals from an Uniform distribution -1, 1 with n_weights
-    population = [creator.Individual(x) for x in (np.random.uniform(-1, 1, (MU, n_weights)))]
-    # We evaluate the initial population and update its fitness
-    fitnesses = toolbox.map(toolbox.evaluate, population)
-    for ind, fit in zip(population, fitnesses):
-        ind.fitness.values = fit
-    # We initialize the MO strategy
-    cma_strategy = cma.StrategyMultiObjective(population, sigma=math.sqrt(1 / LAMBDA), mu=MU, lambda_=LAMBDA)
-elif strategy == 'cma-opl':
-    parent = creator.Individual(np.random.uniform(-1, 1, n_weights))
-    parent.fitness.values = toolbox.evaluate(parent)
-    cma_strategy = cma.StrategyOnePlusLambda(parent, sigma=math.sqrt(1 / LAMBDA), lambda_=LAMBDA)
-else:
-    cma_strategy = cma.Strategy(centroid=np.random.uniform(-1, 1, n_weights), sigma=math.sqrt(1 / LAMBDA), lambda_=LAMBDA)
-
-toolbox.register("generate", cma_strategy.generate, creator.Individual)
-toolbox.register("update", cma_strategy.update)
-
 # Register statistics functions
 stats = tools.Statistics(lambda ind: ind.fitness.values)
 
@@ -154,6 +135,30 @@ def main():
     for run in range(1, NRUN + 1):
         print(f"{strategy} strategy -- Start of evolution enemies {enemies} run {run}")
 
+        if run > 1:
+            toolbox.unregister("generate")
+            toolbox.unregister("update")
+        # TO-DO: add seed for reproducibility
+        if strategy == 'cma-mo':
+            # Generate population of MU individuals from an Uniform distribution -1, 1 with n_weights
+            population = [creator.Individual(x) for x in (np.random.uniform(-1, 1, (MU, n_weights)))]
+            # We evaluate the initial population and update its fitness
+            fitnesses = toolbox.map(toolbox.evaluate, population)
+            for ind, fit in zip(population, fitnesses):
+                ind.fitness.values = fit
+            # We initialize the MO strategy
+            cma_strategy = cma.StrategyMultiObjective(population, sigma=SIGMA, mu=MU, lambda_=LAMBDA)
+        elif strategy == 'cma-opl':
+            parent = creator.Individual(np.random.uniform(-1, 1, n_weights))
+            parent.fitness.values = toolbox.evaluate(parent)
+            cma_strategy = cma.StrategyOnePlusLambda(parent, sigma=SIGMA, lambda_=LAMBDA)
+        else:
+            cma_strategy = cma.Strategy(centroid=np.random.uniform(-1, 1, n_weights), sigma=SIGMA, mu=MU,
+                                        lambda_=LAMBDA)
+
+        toolbox.register("generate", cma_strategy.generate, creator.Individual)
+        toolbox.register("update", cma_strategy.update)
+
         hof = tools.ParetoFront(eq_)
         # generate new population + update its value with methods in toolbox
         # logbook = statistics of the evolution
@@ -166,9 +171,9 @@ def main():
 
         # Write best individuals fitness values for enemy and experiment
         exp_name = f"{MU}_{LAMBDA}_{NGEN}"
-        utils.plot_exp_stats(statistics, experiment_name + "/plots/", exp_name, strategy, str(enemies), NGEN)
-        utils.write_best(best_individuals, experiment_name + "/best_results/best_weights/", exp_name, strategy, str(enemies))
-        utils.eval_best(env, best_individuals, experiment_name + "/best_results/best_individuals/", exp_name, strategy, str(enemies))
+        utils.plot_exp_stats(statistics, experiment_name + "/exp_results/plots/", exp_name, strategy, str(enemies), NGEN)
+        utils.write_best(best_individuals, experiment_name + "/exp_results/best_results/best_weights/", exp_name, strategy, str(enemies))
+        utils.eval_best(env, best_individuals, experiment_name + "/exp_results/best_results/best_individuals/", exp_name, strategy, str(enemies))
     pool.close()
 
 if __name__ == "__main__":

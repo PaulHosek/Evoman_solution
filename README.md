@@ -14,6 +14,7 @@ Two evolutionary methods,CMA-ES and MO-CMA-ES, are evaluated. Both methods use D
 * optuna
 * math
 * deap
+* multiprocessing
 
 ### Running code
 

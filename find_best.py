@@ -8,9 +8,13 @@ import numpy as np
 import matplotlib.pyplot as plt
 import csv
 
-experiment_name = 'controller_generalist_demo'
+experiment_name = 'task2'
 if not os.path.exists(experiment_name):
     os.makedirs(experiment_name)
+    os.makedirs(experiment_name + '/best_results')
+    os.makedirs(experiment_name + '/best_results' + '/best_weights')
+    os.makedirs(experiment_name + '/best_results' + '/best_individuals')
+    os.makedirs(experiment_name + '/plots')
 
 n_hidden_neurons = 10
 
@@ -28,6 +32,14 @@ env = Environment(experiment_name=experiment_name,
 
 
 def find_best_weights(f_prefix_path, n_solutions, n_runs=1, txt_csv=".txt"):
+    """
+    Attempts to find best weights given a single algorithm, by iterating over files.
+    @param f_prefix_path: file name prefex without appending number
+    @param n_solutions: number of files
+    @param n_runs: number of re-test runs
+    @param txt_csv: if txt or csv file
+    @return: three dictionaries for fitness, gain and defeated enemies with values (idx enemy, value, weights)
+    """
     all_ea = np.empty((n_solutions, 265))
     for sol in range(1, n_solutions + 1):
         with open(f_prefix_path + str(sol) + txt_csv) as f:
@@ -41,9 +53,10 @@ def find_best_weights(f_prefix_path, n_solutions, n_runs=1, txt_csv=".txt"):
         # (re-)set performance measures
         fitnesses = np.empty((n_runs, 8))
         gains = np.empty((n_runs, 8))
-        n_defeated = 0
+
         for run in range(n_runs):
             cur_result = np.empty((8, 4))
+            n_defeated = 0
             for en in range(1, 9):
                 # Update the enemy
                 env.update_parameter('enemies', [en])
@@ -75,9 +88,10 @@ def find_best_weights(f_prefix_path, n_solutions, n_runs=1, txt_csv=".txt"):
 
 
 # path is universal prefix of all algorithms without the number at the end e.g., mo-cma-1.txt -> mo-cma-
-path = "ea_exp/best_results/Best_individuals_ea_expeaMuPlusLambda_e2_run"
 
-sol = find_best_weights(f_prefix_path=path, n_solutions=8, txt_csv=".txt", n_runs=1)
+path = "1800/exp-30_130_300_alg-cma-mo_enemy-[1, 3, 4, 6, 7]_run-"
+sol = find_best_weights(f_prefix_path=path, n_solutions=6, txt_csv=".txt", n_runs=3)
+
 
 with open('best_fitness.csv', 'w+') as csvfile:
     for key in sol['Fitness'].keys():

@@ -31,8 +31,11 @@ env = Environment(experiment_name=experiment_name,
 
 # example weights
 # change this for testing
-weights = np.loadtxt('ea_exp/best_results/Best_individuals_ea_expeaMuPlusLambda_e1_run2.txt')
-weights_2 = np.loadtxt('ea_exp/best_results/Best_individuals_ea_expeaMuPlusLambda_e6_run4.txt')
+best_weights = np.loadtxt('the_absolute_best_weights.txt')
+# weights_2 = np.loadtxt('ea_exp/best_results/Best_individuals_ea_expeaMuPlusLambda_e6_run4.txt')
+
+
+
 
 
 # tests saved demo solutions for each enemy
@@ -56,8 +59,21 @@ def assess_per_enemy(weights, n_runs=10, full_out = False):
     return fitnesses, gains
 
 
-fitnesses, gains, full_out = assess_per_enemy(weights=weights,n_runs=3, full_out=True)
+
+
+
+
+
+fitnesses, gains, full_out = assess_per_enemy(weights=best_weights,n_runs=1, full_out=True)
 print(full_out)
+
+
+
+
+
+
+# fitnesses, gains, full_out = assess_per_enemy(weights=weights,n_runs=3, full_out=True)
+# print(full_out)
 
 # Plotting
 def plot_measure(data:list,measure_name,file_name, labels=["EA 1", "EA 2"], show_save="show"):
@@ -99,8 +115,13 @@ def plot_measure(data:list,measure_name,file_name, labels=["EA 1", "EA 2"], show
     return
 
 
-fitnesses, gains = assess_per_enemy(weights=weights,n_runs=10)
-fitnesses_2, gains_2 = assess_per_enemy(weights=weights_2,n_runs=10)
+# fitnesses, gains = assess_per_enemy(weights=weights,n_runs=10)
+# fitnesses_2, gains_2 = assess_per_enemy(weights=weights_2,n_runs=10)
+#
+# plot_measure([gains,gains_2], "Gain", 'some_figure_name',show_save="show",labels=["MO example","CMA example"])
 
-plot_measure([gains,gains_2], "Gain", 'some_figure_name',show_save="show",labels=["MO example","CMA example"])
+
+# fitnesses_1800, gains_1800 = assess_per_enemy(weights=weights_1800,n_runs=2)
+#
+# plot_measure([gains_1800], "Gain", 'some_figure_name',show_save="show",labels=["1800"])
 

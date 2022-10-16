@@ -1,5 +1,6 @@
 # --------------------- Import Frameworks and Libraries ---------------------- #
-import math
+import random
+import pickle
 import operator
 import sys, os
 import utils
@@ -22,6 +23,7 @@ if not os.path.exists(experiment_name + '/exp_results'):
     os.makedirs(experiment_name + '/exp_results/best_results')
     os.makedirs(experiment_name + '/exp_results/best_results' + '/best_weights')
     os.makedirs(experiment_name + '/exp_results/best_results' + '/best_individuals')
+    os.makedirs(experiment_name + '/exp_results/pickle')
     os.makedirs(experiment_name + '/exp_results/plots')
 
 # Prevent graphics and audio rendering to speed up simulations
@@ -32,13 +34,15 @@ os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = 'hide'
 # Read environment variables
 NRUN = int(environ.get("nrun", 1))
 enemies = list(map(int, environ.get("enemy", '1-3-4-6-7').split('-')))
-MU = int(environ.get("mu", 10))
-LAMBDA = int(environ.get("lambda", 20))
-SIGMA = float(environ.get("sigma", 0.19))
-NGEN = int(environ.get("ngen", 20))
+MU = int(environ.get("mu", 23))
+LAMBDA = int(environ.get("lambda", 114))
+SIGMA = float(environ.get("sigma", 0.122))
+NGEN = int(environ.get("ngen", 400))
 multiple_mode = 'yes' if len(enemies) > 1 else 'no'
 n_hidden_neurons = 10
-strategy = environ.get("strategy", 'cma-mo')
+strategy = environ.get("strategy", 'cma')
+checkpoint = False
+loadFromOne = False
 
 # Initialise the game environment for the chosen settings
 env = Environment(experiment_name=experiment_name,
@@ -48,6 +52,7 @@ env = Environment(experiment_name=experiment_name,
                   player_controller=player_controller(n_hidden_neurons),
                   enemymode="static",
                   level=2,
+                  randomini="yes",
                   speed="fastest")
 
 # -------------------------------- Functions For DEAP ------------------------- #
@@ -114,13 +119,16 @@ else:
     creator.create('Individual', np.ndarray, fitness=creator.FitnessMax, player_life=100, enemy_life=100)
     toolbox.register("evaluate", cust_evaluate)
 
-# Register statistics functions
-stats = tools.Statistics(lambda ind: ind.fitness.values)
-
 if strategy == 'cma-mo':
-    stats.register("mean", mean_mo)
-    stats.register("max", max_mo)
+    #stats.register("mean", mean_mo)
+    #stats.register("max", max_mo)
+    stats = tools.Statistics()
+    stats.register("mean", lambda pop: np.mean([np.mean(ind.fitness.values) for ind in pop]))
+    stats.register("max", lambda pop: np.max([np.mean(ind.fitness.values) for ind in pop]))
+
 else:
+    # Register statistics functions
+    stats = tools.Statistics(lambda ind: ind.fitness.values)
     stats.register("mean", np.mean)
     stats.register("max", np.max)
 
@@ -134,6 +142,7 @@ def main():
     # We run the experiment a few times - n_runs
     for run in range(1, NRUN + 1):
         print(f"{strategy} strategy -- Start of evolution enemies {enemies} run {run}")
+        exp_name = f"{MU}_{LAMBDA}_{NGEN}"
 
         if run > 1:
             toolbox.unregister("generate")
@@ -162,7 +171,55 @@ def main():
         hof = tools.ParetoFront(eq_)
         # generate new population + update its value with methods in toolbox
         # logbook = statistics of the evolution
-        pop, logbook = algorithms.eaGenerateUpdate(toolbox, ngen=NGEN, stats=stats, halloffame=hof)
+        if strategy == 'cma' and checkpoint:
+            if loadFromOne:
+                weights = np.loadtxt(experiment_name + '/exp_results/best_start.txt')
+                pop = []
+                for i in range(0, LAMBDA):
+                    if i > 0:
+                        mask = np.random.uniform(-0.1, 0.1, n_weights)
+                        masked_weights = np.add(weights, mask)
+                        pop.append(creator.Individual(masked_weights))
+                    else:
+                        pop.append(creator.Individual(weights))
+            else:
+                # A file name has been given, then load the data from the file
+                with open(f"{experiment_name}/exp_results/pickle/exp-{exp_name}_alg-{strategy}_enemy-{str(enemies)}_run-{run}.pkl", "rb") as cp_file:
+                    cp = pickle.load(cp_file)
+                pop = cp["population"]
+                hof = cp["halloffame"]
+                hof.update(pop)
+
+            # Evaluate the individuals
+            fitnesses = toolbox.map(toolbox.evaluate, pop)
+            for ind, fit in zip(pop, fitnesses):
+                ind.fitness.values = fit
+            toolbox.update(pop)
+            record = stats.compile(pop) if stats is not None else {}
+            logbook = tools.Logbook()
+            logbook.header = ['gen', 'nevals'] + (stats.fields if stats else [])
+            logbook.record(gen=0, nevals=len(pop), **record)
+            print(logbook.stream)
+
+            for gen in range(1, NGEN):
+                # Generate a new population
+                pop = toolbox.generate()
+                # Evaluate the individuals
+                fitnesses = toolbox.map(toolbox.evaluate, pop)
+                for ind, fit in zip(pop, fitnesses):
+                    ind.fitness.values = fit
+
+                if hof is not None:
+                    hof.update(pop)
+
+                # Update the strategy with the evaluated individuals
+                toolbox.update(pop)
+
+                record = stats.compile(pop) if stats is not None else {}
+                logbook.record(gen=gen, nevals=len(pop), **record)
+                print(logbook.stream)
+        else:
+            pop, logbook = algorithms.eaGenerateUpdate(toolbox, ngen=NGEN, stats=stats, halloffame=hof)
 
         best_individuals.append(hof[0])
         statistics.append(pd.DataFrame(logbook))
@@ -170,10 +227,13 @@ def main():
         print("-- End of (successful) evolution --")
 
         # Write best individuals fitness values for enemy and experiment
-        exp_name = f"{MU}_{LAMBDA}_{NGEN}"
         utils.plot_exp_stats(statistics, experiment_name + "/exp_results/plots/", exp_name, strategy, str(enemies), NGEN)
         utils.write_best(best_individuals, experiment_name + "/exp_results/best_results/best_weights/", exp_name, strategy, str(enemies))
         utils.eval_best(env, best_individuals, experiment_name + "/exp_results/best_results/best_individuals/", exp_name, strategy, str(enemies))
+
+        cp = dict(population=pop, generation=NGEN, halloffame=hof)
+        with open(f"{experiment_name}/exp_results/pickle/exp-{exp_name}_alg-{strategy}_enemy-{str(enemies)}_run-{run}.pkl", "wb") as cp_file:
+            pickle.dump(cp, cp_file)
     pool.close()
 
 if __name__ == "__main__":

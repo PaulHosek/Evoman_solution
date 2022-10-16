@@ -66,6 +66,11 @@ def write_best(individuals, folder, exp_name, alg, enemy):
             for weight in individual:
                 f.write(str(weight) + "\n")
 
+def save_exp(population, folder, exp_name, alg, enemy, run):
+    with open(f"{folder}exp-{exp_name}_alg-{alg}_enemy-{enemy}_run-{run}.pickle", "wb") as f:
+        pickle.dump(population, f)
+
+
 
 # Test the best individual per run and save resulting statistics
 def eval_best(env, individuals, folder, exp_name, alg, enemy):

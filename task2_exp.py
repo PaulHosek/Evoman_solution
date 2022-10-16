@@ -1,14 +1,14 @@
 import os
 import numpy as np
 
-enemies = ['7-8', '1-3-4-6-7']
+enemies = ['1-3-4-6-7']
 mu = {'cma':'20', 'cma-mo':'23'}
 lmbd = {'cma':'50', 'cma-mo':'71'}
 sigma = {'cma':'0.486', 'cma-mo':'0.224'}
 #cmo: 10, 20, 0.234
-ngen = ['300']
+ngen = ['500']
 nrun = '10'
-strategies = ['cma-mo', 'cma']
+strategies = ['cma']
 
 cnt = 0
 for strategy in strategies:
@@ -16,7 +16,8 @@ for strategy in strategies:
         if len(enemy) > 3:
             mu = {'cma': '23', 'cma-mo': '30'}
             lmbd = {'cma': '114', 'cma-mo': '130'}
-            sigma = {'cma': '0.122', 'cma-mo': '0.19'}
+            sigma = {'cma': '0.222', 'cma-mo': '0.0199605598295241'}
+
         for n in ngen:
             cnt += 1
             print(f"Run {cnt}")

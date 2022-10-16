@@ -40,6 +40,13 @@ best_weights = np.loadtxt('the_absolute_best_weights.txt')
 
 # tests saved demo solutions for each enemy
 def assess_per_enemy(weights, n_runs=10, full_out = False):
+    """
+    Assess a set of weights on all enemies.
+    @param weights: set of weights
+    @param n_runs: number of iterations to do the testing
+    @param full_out: If true: return 2d array of (fitness, player life, enemy life, time) x enemy
+    @return:
+    """
     if full_out:
         mean_values = np.empty((n_runs, 8, 4))
     fitnesses = np.empty((n_runs ,8))
@@ -61,11 +68,6 @@ def assess_per_enemy(weights, n_runs=10, full_out = False):
 
 
 
-
-
-
-fitnesses, gains, full_out = assess_per_enemy(weights=best_weights,n_runs=1, full_out=True)
-print(full_out)
 
 
 

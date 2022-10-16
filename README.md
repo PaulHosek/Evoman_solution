@@ -61,7 +61,22 @@ exp_name
 > **parameter_tests.py**  
 > testing the parameters from the framework
 
+> **statistical_tests.py**  
+> Run pairwise t-test on all enemies for multiple set of weights.
+> Run wilcoxon signed-rank test on gain for all enemies.
+
+
 > **plot_bar_enemies.py**  
-> plotting the box-graph with fitness
+> Comparing multiple algorithms over
+> multiple runs for all enemies.
+> Draws boxplot comparison plot.
 
+> **find_best.py**  
+> Attempts to find best set of weights maximising gain, fitness and the 
+> number of defeated enemies respectively. Generates and writes three files with best found weights and their values.
 
+> **line_plot.py**  
+> Plots the mean and max generational fitness for two EAs
+
+> **box_plot.py**  
+> Plots box plot summary of the Gain values for two EAs

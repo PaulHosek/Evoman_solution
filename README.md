@@ -37,7 +37,6 @@ python bar_enemies.py
 
 ### Results
 
-Xxx
 
 ```sh
 exp_name
